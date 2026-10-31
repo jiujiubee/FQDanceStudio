@@ -10,7 +10,7 @@
 	</view>
 	<view class="field">
 	  <text class="label">手机号</text>
-	  placeholder="必填，管理员录入视为未验证" placeholder-class="placeholder" maxlength="13" data-k="phone"
+	  <input class="control" type="number" value="{{form.phone}}" placeholder="必填，管理员录入视为未验证" placeholder-class="placeholder" maxlength="13" data-k="phone" bindinput="onInput" />
 	</view>
 	<view class="field">
 	  <text class="label">性别</text>

@@ -86,8 +86,16 @@ Page({
     this.load()
   },
 
+  rosterCandidates() {
+    const rows = [...this.data.notCheckedIn, ...this.data.others]
+    const seen = new Set<string>()
+    return rows
+      .filter((r) => r.status !== 'present' && !seen.has(r.studentId) && seen.add(r.studentId))
+      .map((r) => ({ _id: r.studentId, name: r.name, avatar: r.avatar }))
+  },
+
   openPicker() {
-    this.setData({ picker: true, candidates: [] })
+    this.setData({ picker: true, candidates: this.rosterCandidates() })
   },
 
   closePicker() {
@@ -99,7 +107,7 @@ Page({
   async onSearch(e: WechatMiniprogram.CustomEvent) {
     const keyword = e.detail.keyword as string
     if (!keyword) {
-      this.setData({ candidates: [] })
+      this.setData({ candidates: this.rosterCandidates() })
       return
     }
     try {

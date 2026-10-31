@@ -48,7 +48,7 @@
 	  <search-bar placeholder="搜索姓名 / 微信号" bind:search="onSearch" />
 	  <scroll-view scroll-y class="sheet-list">
 		<student-card wx:for="{{candidates}}" wx:key="_id" item="{{item}}" bind:open="pickStudent" />
-		<view wx:if="{{!candidates.length}}" class="load-more">输入关键词搜索学员</view>
+		<view wx:if="{{!candidates.length}}" class="load-more">{{hasRoster ? '名单内学员均已签到，可搜索其他学员' : '本课程未设置名单，请输入关键词搜索学员'}}</view>
 	  </scroll-view>
 	</view>
   </view>
