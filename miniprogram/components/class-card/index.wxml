@@ -1,0 +1,39 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="cc {{item.status === 'cancelled' ? 'cancelled' : ''}} {{item.ended || item.status === 'completed' ? 'ended' : ''}}" bindtap="tap">
+  <view class="time">
+	<text class="st">{{item.startTime}}</text>
+	<text class="et">{{item.endTime}}</text>
+  </view>
+  <view class="bar"></view>
+  <view class="body">
+	<view class="row1">
+	  <text class="name ellipsis">{{item.name}}</text>
+	  <text wx:if="{{item.status === 'cancelled'}}" class="tag danger">已取消</text>
+	</view>
+	<view class="meta">
+	  <image class="mi" src="/assets/icons/teacher-muted.svg" /><text>{{item.teacherName}}</text>
+	  <image class="mi ml" src="/assets/icons/clock-muted.svg" /><text>{{item.duration}}分钟</text>
+	</view>
+	<view wx:if="{{item.status === 'cancelled' && item.cancelReason}}" class="reason">取消原因：{{item.cancelReason}}</view>
+	<view wx:if="{{mode === 'staff' && item.status !== 'cancelled'}}" class="meta stat">
+	  <text>已签到 <text class="b">{{item.checkedIn || 0}}</text>{{item.hasRoster ? ' / ' + item.expected : ''}}</text>
+	  <text wx:if="{{item.hasRoster}}" class="ml2">未签到 <text class="b">{{item.notCheckedIn}}</text></text>
+	  <text wx:if="{{!item.hasRoster}}" class="ml2 tiny">未设置名单</text>
+	</view>
+	<slot></slot>
+  </view>
+  <view wx:if="{{mode === 'student' && item.status !== 'cancelled'}}" class="act">
+	<block wx:if="{{item.state === 'checked_in'}}">
+	  <view class="done"><image src="/assets/icons/check-active.svg" /><text>已签到</text></view>
+	  <text class="tiny muted">{{f.hm(item.checkInAt)}}</text>
+	</block>
+	<block wx:elif="{{item.canCheckIn}}">
+	  <button class="btn small" hover-class="btn-hover" disabled="{{busy}}" catchtap="checkin">签到</button>
+	</block>
+	<block wx:else>
+	  <button class="btn small" disabled>签到</button>
+	  <text class="hint">{{item.hint}}</text>
+	</block>
+  </view>
+  <image wx:if="{{mode === 'staff'}}" class="arrow" src="/assets/icons/right-muted.svg" />
+</view>

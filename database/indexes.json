@@ -1,0 +1,47 @@
+{
+  "_comment": "在 CloudBase 控制台 -> 数据库 -> 集合 -> 索引管理 中创建。unique=true 为唯一索引。",
+  "users": [
+    { "name": "openid_unique", "keys": { "openid": 1 }, "unique": true },
+    { "name": "role_status", "keys": { "role": 1, "status": 1 } }
+  ],
+  "teachers": [
+    { "name": "userId", "keys": { "userId": 1 } },
+    { "name": "status", "keys": { "status": 1 } }
+  ],
+  "students": [
+    { "name": "userId", "keys": { "userId": 1 } },
+    { "name": "bindCode", "keys": { "bindCode": 1 } },
+    { "name": "studentNo_unique", "keys": { "studentNo": 1 }, "unique": true },
+    { "name": "status_name", "keys": { "status": 1, "name": 1 } },
+    { "name": "groups", "keys": { "groups": 1 } }
+  ],
+  "classes": [
+    { "name": "date_start", "keys": { "date": 1, "startTime": 1 } },
+    { "name": "teacher_date", "keys": { "teacherId": 1, "date": 1 } },
+    { "name": "series", "keys": { "seriesId": 1 } }
+  ],
+  "classSeries": [{ "name": "createdAt", "keys": { "createdAt": -1 } }],
+  "attendance": [
+    { "name": "student_date", "keys": { "studentId": 1, "classDate": -1 } },
+    { "name": "class_status", "keys": { "classId": 1, "status": 1 } }
+  ],
+  "attendanceRosters": [
+    { "name": "classId", "keys": { "classId": 1 } },
+    { "name": "seriesId", "keys": { "seriesId": 1 } }
+  ],
+  "memberships": [
+    { "name": "student_status", "keys": { "studentId": 1, "status": 1 } },
+    { "name": "status_expire", "keys": { "status": 1, "expireDate": 1 } }
+  ],
+  "transactions": [
+    { "name": "student_created", "keys": { "studentId": 1, "createdAt": -1, "seq": -1 } },
+    { "name": "created", "keys": { "createdAt": -1, "seq": -1 } }
+  ],
+  "auditLogs": [
+    { "name": "created", "keys": { "createdAt": -1 } },
+    { "name": "target", "keys": { "targetType": 1, "targetId": 1 } }
+  ],
+  "staffInvites": [{ "name": "status", "keys": { "status": 1 } }],
+  "rolePermissions": [],
+  "systemSettings": []
+}

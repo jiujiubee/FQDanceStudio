@@ -1,0 +1,66 @@
+// 模板内格式化（WXS）。时间统一按 Asia/Shanghai（UTC+8）显示。
+var OFFSET = 8 * 3600 * 1000
+var WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+function pad(n) { return n < 10 ? '0' + n : '' + n }
+
+function hm(ms) {
+  if (!ms) return '—'
+  var d = getDate(ms + OFFSET)
+  return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes())
+}
+
+function full(ms) {
+  if (!ms) return ''
+  var d = getDate(ms + OFFSET)
+  return d.getUTCFullYear() + '年' + (d.getUTCMonth() + 1) + '月' + d.getUTCDate() + '日 ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes())
+}
+
+function md(ms) {
+  if (!ms) return ''
+  var d = getDate(ms + OFFSET)
+  return (d.getUTCMonth() + 1) + '月' + d.getUTCDate() + '日 ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes())
+}
+
+function dateCN(s) {
+  if (!s) return ''
+  var p = s.split('-')
+  var d = getDate(Date.UTC(+p[0], +p[1] - 1, +p[2], 12))
+  return (+p[1]) + '月' + (+p[2]) + '日 ' + WEEK[d.getUTCDay()]
+}
+
+function dateFull(s) {
+  if (!s) return '—'
+  var p = s.split('-')
+  return p[0] + '年' + (+p[1]) + '月' + (+p[2]) + '日'
+}
+
+function initial(name) {
+  return name ? name.substring(0, 1) : '?'
+}
+
+function signed(n) {
+  return n > 0 ? '+' + n : '' + n
+}
+
+function yuan(c) {
+  return '¥' + (c / 100).toFixed(2)
+}
+
+var STATUS = { present: '已签到', absent: '缺勤', class_cancelled: '课程取消', pending: '未签到' }
+var TX = { purchase: '购买开卡', credit_add: '增加课时', attendance_deduction: '签到扣课', manual_deduction: '手动扣课', refund: '退还课时', renewal: '续费', expiration: '到期失效', status_change: '状态变更' }
+var MS = { active: '有效', expired: '已过期', suspended: '已冻结', none: '未开卡' }
+var MT = { CLASS_PASS: '次卡', MONTHLY: '月卡', QUARTERLY: '季卡', pass: '次卡', monthly: '月卡', none: '未开卡' }
+var PM = { credits: '按次扣减', unlimited: '不限次数', quota: '固定次数', limited: '每月限次' }
+var ROLE = { owner: '店主', admin: '管理员', teacher: '教师', student: '学员' }
+
+function label(map, k) {
+  var m = { status: STATUS, tx: TX, ms: MS, mt: MT, pm: PM, role: ROLE }[map]
+  return (m && m[k]) || k || ''
+}
+
+function includes(arr, v) {
+  return !!arr && arr.indexOf(v) >= 0
+}
+
+module.exports = { hm: hm, full: full, md: md, dateCN: dateCN, dateFull: dateFull, initial: initial, signed: signed, yuan: yuan, label: label, includes: includes }

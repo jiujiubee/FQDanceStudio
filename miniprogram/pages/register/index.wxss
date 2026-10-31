@@ -1,0 +1,7 @@
+.brand { display: flex; flex-direction: column; align-items: center; padding: 48rpx 0 32rpx; text-align: center; }
+.logo { width: 120rpx; height: 120rpx; border-radius: 32rpx; background: var(--c-ink); color: var(--c-white); border-bottom: 6rpx solid var(--c-accent); box-sizing: border-box; font-size: 44rpx; font-weight: 700; letter-spacing: 4rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.agree { margin-top: 32rpx; align-items: flex-start; }
+.ck { width: 34rpx; height: 34rpx; border-radius: 50%; border: 2rpx solid var(--c-muted); margin: 6rpx 14rpx 0 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ck.on { background: var(--c-accent); border-color: var(--c-accent); }
+.ck image { width: 24rpx; height: 24rpx; }
+.links { text-align: center; margin-top: 48rpx; }

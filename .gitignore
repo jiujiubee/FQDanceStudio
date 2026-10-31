@@ -1,0 +1,7 @@
+node_modules/
+cloudfunctions/*/node_modules/
+miniprogram/**/*.js
+!miniprogram/**/*.wxs
+project.private.config.json
+.env
+.vs/

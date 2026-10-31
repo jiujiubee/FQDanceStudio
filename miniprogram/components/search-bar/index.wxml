@@ -1,0 +1,5 @@
+<view class="sb">
+  <image class="ic" src="/assets/icons/search-muted.svg" />
+  <input class="in" value="{{value}}" placeholder="{{placeholder}}" placeholder-class="ph" confirm-type="search" bindinput="input" bindconfirm="confirm" />
+  <image wx:if="{{value}}" class="clr" src="/assets/icons/close-muted.svg" bindtap="clear" />
+</view>

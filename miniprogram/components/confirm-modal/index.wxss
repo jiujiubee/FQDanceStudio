@@ -1,0 +1,12 @@
+.mask { position: fixed; inset: 0; left: 0; top: 0; right: 0; bottom: 0; background: var(--c-mask); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.box { width: 620rpx; background: var(--c-white); border-radius: var(--radius-lg); padding: 40rpx 36rpx 0; box-sizing: border-box; box-shadow: var(--shadow-pop); }
+.title { font-size: 32rpx; font-weight: 600; text-align: center; }
+.content { font-size: 26rpx; color: var(--c-grey); margin-top: 20rpx; line-height: 1.7; white-space: pre-wrap; }
+.reason { width: 100%; height: 180rpx; background: var(--c-surface-2); border-radius: 12rpx; padding: 20rpx; box-sizing: border-box; margin-top: 24rpx; font-size: 26rpx; }
+.ph { color: var(--c-muted); }
+.btns { display: flex; margin: 36rpx -36rpx 0; border-top: 1rpx solid var(--c-line); }
+.b { flex: 1; height: 100rpx; line-height: 100rpx; text-align: center; font-size: 30rpx; }
+.cancel { color: var(--c-grey); border-right: 1rpx solid var(--c-line); }
+.ok { color: var(--c-accent); font-weight: 600; }
+.ok.danger { color: var(--c-accent-dark); }
+.ok.dis { color: var(--c-muted); }

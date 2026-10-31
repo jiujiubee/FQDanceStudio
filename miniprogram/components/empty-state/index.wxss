@@ -1,0 +1,4 @@
+.es { display: flex; flex-direction: column; align-items: center; padding: 80rpx 40rpx; }
+.ic { width: 96rpx; height: 96rpx; opacity: .7; }
+.t { font-size: 28rpx; color: var(--c-grey); margin-top: 20rpx; }
+.d { font-size: 24rpx; color: var(--c-muted); margin-top: 8rpx; text-align: center; }

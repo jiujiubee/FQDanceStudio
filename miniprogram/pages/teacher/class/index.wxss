@@ -1,0 +1,4 @@
+.nm { font-size: 40rpx; margin: 0; }
+.sheet-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: var(--c-mask); z-index: 900; display: flex; align-items: flex-end; }
+.sheet { width: 100%; background: var(--c-surface-2); border-radius: 32rpx 32rpx 0 0; padding: 36rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.sheet-list { height: 60vh; margin-top: 24rpx; }

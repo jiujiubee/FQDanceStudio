@@ -1,0 +1,17 @@
+<view class="wk">
+  <view class="head">
+	<view class="nav {{canPrev ? '' : 'off'}}" bindtap="prev"><image src="/assets/icons/left{{canPrev ? '' : '-muted'}}.svg" /></view>
+	<view class="title">
+	  <text class="t">{{title}}</text>
+	  <text wx:if="{{!isCurrent}}" class="back" bindtap="backToday">回到本周</text>
+	</view>
+	<view class="nav {{canNext ? '' : 'off'}}" bindtap="next"><image src="/assets/icons/right{{canNext ? '' : '-muted'}}.svg" /></view>
+  </view>
+  <view class="days">
+	<view wx:for="{{days}}" wx:key="date" class="day {{item.isSelected ? 'sel' : ''}} {{item.isPast ? 'past' : ''}} {{item.isToday ? 'today' : ''}}" data-date="{{item.date}}" bindtap="pick">
+	  <text class="wd">{{item.isToday ? '今天' : item.weekday}}</text>
+	  <text class="dn">{{item.day}}</text>
+	  <view class="dot {{item.count ? 'has' : ''}}"></view>
+	</view>
+  </view>
+</view>

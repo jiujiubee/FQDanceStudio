@@ -1,0 +1,2 @@
+.log { padding: 28rpx 32rpx; }
+.diff { word-break: break-all; margin-top: 8rpx; background: var(--c-surface-2); padding: 12rpx 16rpx; border-radius: 8rpx; }

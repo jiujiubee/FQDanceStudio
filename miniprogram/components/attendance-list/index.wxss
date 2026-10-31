@@ -1,0 +1,10 @@
+@import "../../app.wxss";
+.al { background: var(--c-white); border-radius: var(--radius); padding: 0 28rpx; border: 1rpx solid var(--c-line); }
+.it { display: flex; align-items: center; padding: 24rpx 0; border-bottom: 1rpx solid var(--c-line); }
+.it:last-child { border-bottom: none; }
+.info { margin-left: 20rpx; }
+.nm { font-size: 28rpx; font-weight: 500; }
+.sub { font-size: 22rpx; color: var(--c-muted); }
+.op { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; margin-left: 8rpx; }
+.op image { width: 36rpx; height: 36rpx; }
+.none { padding: 40rpx 0; text-align: center; color: var(--c-muted); font-size: 24rpx; }

@@ -1,0 +1,29 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="page-title">本周课程</view>
+  <view class="page-sub">{{studioName}} · 开课前可在此签到</view>
+
+  <view wx:if="{{summary}}" class="card row between sum" bindtap="toMine">
+	<view>
+	  <view class="tiny muted">我的会员</view>
+	  <view class="bold">{{summary.label}}</view>
+	</view>
+	<view class="r">
+	  <text wx:if="{{summary.type === 'pass'}}" class="num">{{summary.remainingCredits}}<text class="u">次</text></text>
+	  <text wx:if="{{summary.expireDate}}" class="tiny muted">至 {{summary.expireDate}}</text>
+	</view>
+  </view>
+
+  <weekly-calendar week-start="{{weekStart}}" selected="{{selected}}" marks="{{marks}}" today="{{today}}" bind:weekchange="onWeek" bind:select="onSelect" />
+
+  <view class="section-title">
+	<text>{{f.dateCN(selected)}}</text>
+	<text class="extra">{{dayClasses.length}} 节课</text>
+  </view>
+
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:else>
+	<class-card wx:for="{{dayClasses}}" wx:key="_id" item="{{item}}" mode="student" busy="{{busyId === item._id}}" bind:checkin="onCheckIn" />
+	<empty-state wx:if="{{!dayClasses.length}}" icon="calendar" title="当天没有课程" desc="切换日期看看其他课程吧" />
+  </block>
+</view>

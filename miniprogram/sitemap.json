@@ -1,0 +1,4 @@
+{
+  "desc": "工作室内部管理工具，不开放搜索索引",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

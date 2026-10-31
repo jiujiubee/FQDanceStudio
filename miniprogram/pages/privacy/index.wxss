@@ -1,0 +1,4 @@
+.doc .h { font-size: 28rpx; font-weight: 600; margin: 24rpx 0 8rpx; }
+.doc .h:first-child { margin-top: 0; }
+.doc .p { font-size: 26rpx; color: var(--c-grey); line-height: 1.8; text-align: justify; }
+.list { padding: 0 32rpx; }

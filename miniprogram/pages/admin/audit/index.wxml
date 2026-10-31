@@ -1,0 +1,16 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="page-title">操作日志</view>
+  <view class="page-sub">关键操作均被记录，不可修改</view>
+  <view wx:for="{{items}}" wx:key="_id" class="card log">
+	<view class="row between">
+	  <text class="bold">{{item.actionText}}</text>
+	  <text class="tiny muted">{{f.md(item.createdAt)}}</text>
+	</view>
+	<view class="small grey">操作人：{{item.actorName || '—'}}（{{f.label('role', item.actorRole) || item.actorRole}}）</view>
+	<view wx:if="{{item.reason}}" class="small grey">原因：{{item.reason}}</view>
+	<view wx:if="{{item.diff}}" class="tiny muted diff">{{item.diff}}</view>
+  </view>
+  <empty-state wx:if="{{!loading && !items.length}}" icon="list" title="暂无日志" />
+  <view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+</view>

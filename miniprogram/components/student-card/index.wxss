@@ -1,0 +1,11 @@
+@import "../../app.wxss";
+.sc { display: flex; align-items: center; background: var(--c-white); border-radius: var(--radius); padding: 24rpx 28rpx; margin-bottom: 16rpx; border: 1rpx solid var(--c-line); }
+.body { margin-left: 20rpx; }
+.row { display: flex; align-items: center; gap: 12rpx; }
+.nm { font-size: 30rpx; font-weight: 600; max-width: 300rpx; }
+.sub { font-size: 22rpx; color: var(--c-muted); margin-top: 4rpx; }
+.right { display: flex; flex-direction: column; align-items: flex-end; margin-left: 12rpx; flex-shrink: 0; }
+.lbl { font-size: 24rpx; color: var(--c-text-2); }
+.ck { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid var(--c-light-grey); margin-left: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ck.on { background: var(--c-accent); border-color: var(--c-accent); }
+.ck image { width: 28rpx; height: 28rpx; }

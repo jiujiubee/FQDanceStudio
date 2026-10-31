@@ -1,0 +1,21 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="al">
+  <view wx:for="{{list}}" wx:key="studentId" class="it">
+	<view class="avatar">
+	  <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
+	  <text wx:else>{{f.initial(item.name)}}</text>
+	</view>
+	<view class="grow info">
+	  <view class="nm">{{item.name}}</view>
+	  <view class="sub">
+		<text wx:if="{{item.status === 'present'}}">{{f.hm(item.checkInAt)}} 签到{{item.source === 'manual' ? '（代签）' : ''}}</text>
+		<text wx:else>{{f.label('status', item.status)}}</text>
+	  </view>
+	</view>
+	<text class="tag {{item.status === 'present' ? 'success' : item.status === 'absent' ? 'danger' : ''}}">{{f.label('status', item.status)}}</text>
+	<view wx:if="{{canMark}}" class="op" data-id="{{item.studentId}}" data-name="{{item.name}}" data-status="{{item.status}}" bindtap="mark">
+	  <image src="/assets/icons/edit-muted.svg" />
+	</view>
+  </view>
+  <view wx:if="{{!list.length}}" class="none">{{emptyText}}</view>
+</view>

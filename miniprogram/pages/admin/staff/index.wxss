@@ -1,0 +1,4 @@
+.list { padding: 0 32rpx; }
+.ml { margin-left: 16rpx; }
+.mt-s { margin-top: 6rpx; }
+.code { font-family: Menlo, monospace; letter-spacing: 4rpx; font-size: 32rpx; }

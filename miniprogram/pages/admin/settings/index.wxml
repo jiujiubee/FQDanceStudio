@@ -1,0 +1,75 @@
+<view class="container">
+  <block wx:if="{{canSettings}}">
+	<view class="section-title">基本设置</view>
+	<view class="form">
+	  <view class="field">
+		<text class="label">工作室名称</text>
+		<input class="control" value="{{s.studioName}}" maxlength="40" data-k="studioName" bindinput="onInput" />
+	  </view>
+	  <view class="field">
+		<text class="label">提前签到</text>
+		<input class="control" type="number" value="{{s.openBefore}}" maxlength="3" data-k="openBefore" bindinput="onInput" /><text class="unit">分钟</text>
+	  </view>
+	  <view class="field">
+		<text class="label">开课后可签</text>
+		<input class="control" type="number" value="{{s.closeAfter}}" maxlength="3" data-k="closeAfter" bindinput="onInput" /><text class="unit">分钟</text>
+	  </view>
+	  <view class="field">
+		<text class="label">隐私政策版本</text>
+		<input class="control" value="{{s.privacyPolicyVersion}}" maxlength="20" data-k="privacyPolicyVersion" bindinput="onInput" />
+	  </view>
+	</view>
+	<view class="hint">修改隐私政策版本后，用户需重新同意。</view>
+  </block>
+
+  <block wx:if="{{canPolicy}}">
+	<view class="section-title">会员规则</view>
+	<view class="form">
+	  <view class="field">
+		<text class="label">月卡默认</text>
+		<view class="control">
+		  <view class="segment inline">
+			<view class="seg {{s.monthlyDefaultMode === 'unlimited' ? 'on' : ''}}" data-v="unlimited" bindtap="setMode">不限次</view>
+			<view class="seg {{s.monthlyDefaultMode === 'limited' ? 'on' : ''}}" data-v="limited" bindtap="setMode">限次</view>
+		  </view>
+		</view>
+	  </view>
+	  <view wx:if="{{s.monthlyDefaultMode === 'limited'}}" class="field">
+		<text class="label">每月次数</text>
+		<input class="control" type="number" value="{{s.monthlyDefaultLimit}}" maxlength="3" data-k="monthlyDefaultLimit" bindinput="onInput" />
+	  </view>
+	  <view class="field">
+		<text class="label">次卡有效期</text>
+		<input class="control" type="number" value="{{s.passDefaultValidDays}}" maxlength="4" data-k="passDefaultValidDays" bindinput="onInput" /><text class="unit">天</text>
+	  </view>
+	  <view class="field">
+		<text class="label">次卡规格</text>
+		<input class="control" value="{{s.passPresetsText}}" placeholder="如 10 20 30" placeholder-class="placeholder" data-k="passPresetsText" bindinput="onInput" />
+	  </view>
+	  <view class="field">
+		<text class="label grow">取消课程退还课时</text>
+		<switch color="#722F3E" checked="{{s.refundOnCancel}}" bindchange="onRefund" />
+	  </view>
+	</view>
+  </block>
+
+  <button wx:if="{{canSettings || canPolicy}}" class="btn mt" hover-class="btn-hover" disabled="{{busy}}" bindtap="save">保存设置</button>
+
+  <block wx:if="{{canPerm}}">
+	<view class="section-title">角色权限</view>
+	<view class="segment mb">
+	  <view wx:for="{{roleTabs}}" wx:key="key" class="seg {{role === item.key ? 'on' : ''}}" data-r="{{item.key}}" bindtap="setRole">{{item.text}}</view>
+	</view>
+	<view class="form">
+	  <view wx:for="{{permRows}}" wx:key="key" class="field">
+		<text class="label grow">{{item.text}}</text>
+		<switch color="#722F3E" checked="{{item.on}}" disabled="{{item.forbidden}}" data-i="{{index}}" bindchange="togglePerm" />
+	  </view>
+	</view>
+	<view class="hint">店主始终拥有全部权限。灰色项为该角色不可拥有的权限。</view>
+	<view class="btn-group mt">
+	  <button class="btn ghost" bindtap="resetPerm">恢复默认</button>
+	  <button class="btn" bindtap="savePerm">保存权限</button>
+	</view>
+  </block>
+</view>

@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="row between mb">
+	<view class="page-title">学员管理</view>
+	<button wx:if="{{canManage}}" class="btn small" hover-class="btn-hover" bindtap="create">登记学员</button>
+  </view>
+  <search-bar placeholder="搜索姓名 / 微信号 / 手机号 / 学号" bind:search="onSearch" />
+  <view class="segment mt mb">
+	<view class="seg {{status === 'all' ? 'on' : ''}}" data-s="all" bindtap="setStatus">全部</view>
+	<view class="seg {{status === 'active' ? 'on' : ''}}" data-s="active" bindtap="setStatus">正常</view>
+	<view class="seg {{status === 'suspended' ? 'on' : ''}}" data-s="suspended" bindtap="setStatus">已停用</view>
+  </view>
+  <loading-skeleton wx:if="{{loading && !items.length}}" count="5" />
+  <student-card wx:for="{{items}}" wx:key="_id" item="{{item}}" bind:open="open" />
+  <empty-state wx:if="{{!loading && !items.length}}" icon="users" title="没有找到学员" />
+  <view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+</view>

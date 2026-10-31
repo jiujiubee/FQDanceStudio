@@ -1,0 +1,9 @@
+<view class="sk">
+  <view wx:for="{{rows}}" wx:key="*this" class="card">
+	<view class="a"></view>
+	<view class="b">
+	  <view class="l1"></view>
+	  <view class="l2"></view>
+	</view>
+  </view>
+</view>

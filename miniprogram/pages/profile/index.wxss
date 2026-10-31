@@ -1,0 +1,3 @@
+.av-wrap { display: flex; flex-direction: column; align-items: center; padding: 24rpx 0 40rpx; }
+.av-btn { background: none; padding: 0; margin: 0 0 12rpx; line-height: 1; border-radius: 50%; }
+.av-btn::after { border: none; }

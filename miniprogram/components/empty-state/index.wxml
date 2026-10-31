@@ -1,0 +1,6 @@
+<view class="es">
+  <image class="ic" src="/assets/icons/{{icon}}-muted.svg" />
+  <view class="t">{{title}}</view>
+  <view wx:if="{{desc}}" class="d">{{desc}}</view>
+  <slot></slot>
+</view>

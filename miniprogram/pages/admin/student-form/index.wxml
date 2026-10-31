@@ -1,0 +1,37 @@
+<view class="container">
+  <view class="form">
+	<view class="field">
+	  <text class="label">姓名</text>
+	  <input class="control" value="{{form.name}}" placeholder="必填" placeholder-class="placeholder" maxlength="30" data-k="name" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">微信号</text>
+	  <input class="control" value="{{form.wxid}}" placeholder="选填" placeholder-class="placeholder" maxlength="40" data-k="wxid" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">手机号</text>
+	  placeholder="必填，管理员录入视为未验证" placeholder-class="placeholder" maxlength="13" data-k="phone"
+	</view>
+	<view class="field">
+	  <text class="label">性别</text>
+	  <picker class="control" range="{{genders}}" range-key="text" value="{{genderIndex}}" bindchange="onGender"><view>{{genders[genderIndex].text}}</view></picker>
+	</view>
+	<view class="field">
+	  <text class="label">生日</text>
+	  <picker class="control" mode="date" value="{{form.birthday}}" bindchange="onBirthday"><view class="{{form.birthday ? '' : 'placeholder'}}">{{form.birthday || '选填'}}</view></picker>
+	</view>
+	<view class="field">
+	  <text class="label">紧急联系人</text>
+	  <input class="control" value="{{form.emergencyContact}}" placeholder="选填" placeholder-class="placeholder" maxlength="60" data-k="emergencyContact" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">分组</text>
+	  <input class="control" value="{{form.groupsText}}" placeholder="多个用空格分隔" placeholder-class="placeholder" maxlength="200" data-k="groupsText" bindinput="onInput" />
+	</view>
+	<view class="field column">
+	  <text class="label">备注</text>
+	  <textarea class="textarea" value="{{form.remark}}" maxlength="300" placeholder="选填，教师可见" data-k="remark" bindinput="onInput" />
+	</view>
+  </view>
+  <button class="btn mt" hover-class="btn-hover" disabled="{{busy}}" bindtap="save">保存</button>
+</view>

@@ -1,0 +1,24 @@
+<view class="container">
+  <view class="page-title">开发测试模式</view>
+  <view class="page-sub">仅连接开发环境（APP_ENV=development）时可用；生产环境后端会拒绝所有模拟请求。</view>
+
+  <view wx:if="{{!enabled}}" class="card">当前构建未开启开发模式。</view>
+  <block wx:else>
+	<view class="section-title">切换身份</view>
+	<view class="card list">
+	  <view class="cell" data-key="" bindtap="switchTo">
+		<text class="grow">我的真实微信账户</text>
+		<text wx:if="{{!current}}" class="tag accent">当前</text>
+	  </view>
+	  <view wx:for="{{identities}}" wx:key="key" class="cell" data-key="{{item.key}}" bindtap="switchTo">
+		<view class="grow">
+		  <text class="bold">{{item.name}}</text>
+		  <view class="tiny muted">{{item.roleLabel}}{{item.exists ? '' : '（未生成）'}}</view>
+		</view>
+		<text wx:if="{{current === item.key}}" class="tag accent">当前</text>
+	  </view>
+	</view>
+	<button class="btn mt" hover-class="btn-hover" bindtap="seed">生成测试数据</button>
+	<button class="btn ghost mt" hover-class="btn-hover" bindtap="reset">重置开发环境数据</button>
+  </block>
+</view>

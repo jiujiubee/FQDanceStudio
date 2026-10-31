@@ -1,0 +1,8 @@
+.head { padding: 36rpx 32rpx; }
+.info { margin-left: 28rpx; }
+.nm { font-size: 36rpx; font-weight: 600; }
+.mt-s { margin-top: 8rpx; }
+.ml { margin-left: 16rpx; }
+.arrow { width: 32rpx; height: 32rpx; }
+.list { padding: 0 32rpx; }
+.ver { text-align: center; margin-top: 48rpx; }

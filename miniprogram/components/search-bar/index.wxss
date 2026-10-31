@@ -1,0 +1,5 @@
+.sb { display: flex; align-items: center; height: 80rpx; background: var(--c-white); border-radius: 40rpx; padding: 0 28rpx; border: 1rpx solid var(--c-line); }
+.ic { width: 34rpx; height: 34rpx; margin-right: 16rpx; }
+.in { flex: 1; font-size: 28rpx; }
+.ph { color: var(--c-muted); }
+.clr { width: 32rpx; height: 32rpx; padding: 8rpx; }

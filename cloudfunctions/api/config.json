@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "openapi": ["phonenumber.getPhoneNumber"]
+  },
+  "triggers": [
+    {
+      "name": "dailyMaintenance",
+      "type": "timer",
+      "config": "0 5 16 * * * *"
+    }
+  ]
+}

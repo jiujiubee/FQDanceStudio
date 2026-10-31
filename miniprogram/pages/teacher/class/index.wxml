@@ -1,0 +1,55 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="4" />
+  <block wx:else>
+	<view class="card">
+	  <view class="row between">
+		<text class="page-title nm">{{cls.name}}</text>
+		<text wx:if="{{cls.status === 'cancelled'}}" class="tag danger">已取消</text>
+	  </view>
+	  <view class="small grey">{{f.dateCN(cls.date)}} {{cls.startTime}} - {{cls.endTime}}</view>
+	  <view class="small grey">授课老师：{{cls.teacherName}}</view>
+	  <view wx:if="{{cls.cancelReason}}" class="small danger">取消原因：{{cls.cancelReason}}</view>
+	  <view class="divider"></view>
+	  <view class="stats">
+		<view class="stat"><view class="num accent">{{stats.checkedIn}}</view><view class="lbl">已签到</view></view>
+		<view class="stat"><view class="num">{{hasRoster ? stats.expected : '—'}}</view><view class="lbl">名单人数</view></view>
+		<view class="stat"><view class="num">{{hasRoster ? stats.notCheckedIn : '—'}}</view><view class="lbl">未签到</view></view>
+	  </view>
+	  <view wx:if="{{canManage}}" class="btn-group mt">
+		<button class="btn light small" bindtap="toRoster">上课名单</button>
+		<button class="btn light small" bindtap="toEdit">编辑课程</button>
+	  </view>
+	</view>
+
+	<view class="section-title">
+	  <text>已签到（{{checkedIn.length}}）</text>
+	  <text wx:if="{{canMark && cls.status !== 'cancelled'}}" class="extra accent" bindtap="openPicker">+ 代学员签到</text>
+	</view>
+	<attendance-list list="{{checkedIn}}" can-mark="{{canMark}}" empty-text="暂无学员签到" bind:mark="onMark" />
+
+	<block wx:if="{{hasRoster}}">
+	  <view class="section-title"><text>未签到（{{notCheckedIn.length}}）</text></view>
+	  <attendance-list list="{{notCheckedIn}}" can-mark="{{canMark && cls.status !== 'cancelled'}}" empty-text="名单内学员均已签到" bind:mark="onMark" />
+	</block>
+	<view wx:else class="hint">本课程未设置上课名单，因此不统计未签到学员。</view>
+
+	<block wx:if="{{others.length}}">
+	  <view class="section-title"><text>其他记录</text></view>
+	  <attendance-list list="{{others}}" can-mark="{{canMark}}" bind:mark="onMark" />
+	</block>
+  </block>
+
+  <confirm-modal show="{{modal.show}}" title="{{modal.title}}" content="{{modal.content}}" need-reason confirm-text="{{modal.confirmText}}" danger="{{modal.status === 'absent'}}" bind:confirm="doMark" bind:cancel="closeModal" />
+
+  <view wx:if="{{picker}}" class="sheet-mask" bindtap="closePicker">
+	<view class="sheet" catchtap="noop">
+	  <view class="bold mb">选择学员</view>
+	  <search-bar placeholder="搜索姓名 / 微信号" bind:search="onSearch" />
+	  <scroll-view scroll-y class="sheet-list">
+		<student-card wx:for="{{candidates}}" wx:key="_id" item="{{item}}" bind:open="pickStudent" />
+		<view wx:if="{{!candidates.length}}" class="load-more">输入关键词搜索学员</view>
+	  </scroll-view>
+	</view>
+  </view>
+</view>

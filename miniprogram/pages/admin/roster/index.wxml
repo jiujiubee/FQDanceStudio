@@ -1,0 +1,32 @@
+<view class="container">
+  <view class="card">
+	<view class="bold">{{cls.name}}</view>
+	<view class="small grey">{{cls.date}} {{cls.startTime}} · {{cls.teacherName}}</view>
+	<view class="hint">设置名单后，系统才会统计「未签到」学员；名单不限制签到，名单外学员也可签到。</view>
+  </view>
+
+  <view wx:if="{{hasSeries}}" class="segment mb">
+	<view class="seg {{target === 'class' ? 'on' : ''}}" data-t="class" bindtap="setTarget">仅本节</view>
+	<view class="seg {{target === 'series' ? 'on' : ''}}" data-t="series" bindtap="setTarget">整个批次</view>
+  </view>
+
+  <block wx:if="{{groups.length}}">
+	<view class="section-title">按分组添加</view>
+	<view class="chips mb">
+	  <view wx:for="{{groups}}" wx:key="*this" class="chip {{selGroups[item] ? 'on' : ''}}" data-g="{{item}}" bindtap="toggleGroup">{{item}}</view>
+	</view>
+  </block>
+
+  <view class="section-title"><text>已选学员（{{selectedList.length}}）</text><text class="extra" bindtap="clearAll">清空</text></view>
+  <student-card wx:for="{{selectedList}}" wx:key="_id" item="{{item}}" selectable checked bind:open="toggle" />
+  <view wx:if="{{!selectedList.length}}" class="load-more">未设置名单</view>
+
+  <view class="section-title">添加学员</view>
+  <search-bar placeholder="搜索姓名 / 微信号 / 手机号" bind:search="onSearch" />
+  <view class="gap"></view>
+  <student-card wx:for="{{results}}" wx:key="_id" item="{{item}}" selectable checked="{{!!selected[item._id]}}" bind:open="toggle" />
+
+  <view class="footer-bar">
+	<button class="btn" hover-class="btn-hover" disabled="{{busy}}" bindtap="save">保存名单</button>
+  </view>
+</view>

@@ -1,0 +1,5 @@
+{
+  "_comment": "云存储 -> 权限设置 -> 自定义安全规则。仅登录用户可读；仅可写入以自身 openid 命名的头像目录。云函数会再次校验 fileID 路径。",
+  "read": "auth != null",
+  "write": "auth != null && resource.openid == auth.openid && resource.path.startsWith('avatars/')"
+}

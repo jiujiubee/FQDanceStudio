@@ -1,0 +1,102 @@
+/* FQ Dance Studio — 全局样式：黑白灰为主体，勃艮第红为唯一强调色。色值统一取自 styles/theme.wxss */
+@import "styles/theme.wxss";
+
+page {
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-body);
+  font-size: 28rpx;
+  line-height: 1.6;
+  letter-spacing: 0.5rpx;
+}
+
+.container { padding: 32rpx 32rpx 200rpx; box-sizing: border-box; }
+.page-title { font-size: 48rpx; font-weight: 600; letter-spacing: 2rpx; margin: 8rpx 0 6rpx; color: var(--c-ink); }
+.page-sub { color: var(--c-muted); font-size: 24rpx; margin-bottom: 32rpx; }
+.section-title { font-size: 30rpx; font-weight: 600; margin: 40rpx 0 20rpx; display: flex; align-items: center; justify-content: space-between; }
+.section-title .extra { font-size: 24rpx; font-weight: 400; color: var(--c-muted); }
+
+.card { background: var(--c-surface); border-radius: var(--radius); padding: var(--sp-l); margin-bottom: var(--sp-m); border: 1rpx solid var(--c-line); box-shadow: var(--shadow); }
+.row { display: flex; align-items: center; }
+.between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--c-muted); }
+.grey { color: var(--c-grey); }
+.small { font-size: 24rpx; }
+.tiny { font-size: 22rpx; }
+.bold { font-weight: 600; }
+.accent { color: var(--c-accent); }
+.danger { color: var(--c-danger); }
+.success { color: var(--c-success); }
+.ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mt { margin-top: 24rpx; }
+.mb { margin-bottom: 24rpx; }
+.gap { height: 24rpx; }
+.divider { height: 1rpx; background: var(--c-line); margin: 24rpx 0; }
+
+/* 按钮 */
+.btn { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; font-weight: 500; background: var(--c-accent); color: var(--c-on-accent); border: none; padding: 0 40rpx; margin: 0; line-height: 88rpx; }
+.btn::after { border: none; }
+.btn.ghost { background: var(--c-surface); color: var(--c-ink); border: 1rpx solid var(--c-border); }
+.btn.light { background: var(--c-bg-grey); color: var(--c-text-2); border: 1rpx solid var(--c-border); }
+.btn.dark { background: var(--c-ink); color: var(--c-white); }
+.btn.danger { background: var(--c-surface); color: var(--c-accent-dark); border: 1rpx solid var(--c-accent-dark); }
+.btn.small { height: 60rpx; line-height: 60rpx; font-size: 24rpx; padding: 0 28rpx; border-radius: 30rpx; display: inline-flex; }
+.btn[disabled] { background: var(--c-disabled-bg) !important; color: var(--c-disabled-text) !important; border-color: var(--c-disabled-bg) !important; }
+.btn-group { display: flex; gap: 20rpx; }
+.btn-group .btn { flex: 1; }
+.btn-hover { opacity: 0.8; }
+.btn.btn-hover:not(.ghost):not(.light):not(.danger):not(.dark) { background: var(--c-accent-dark); opacity: 1; }
+
+/* 标签 */
+.tag { display: inline-flex; align-items: center; height: 40rpx; padding: 0 16rpx; border-radius: var(--radius-sm); font-size: 22rpx; background: var(--c-bg-grey); color: var(--c-grey); }
+.tag.accent { background: var(--c-accent-soft); color: var(--c-accent); }
+.tag.dark { background: var(--c-ink); color: var(--c-white); }
+.tag.success { background: var(--c-accent-soft); color: var(--c-accent); }
+.tag.danger { background: var(--c-surface); color: var(--c-accent-dark); border: 1rpx solid var(--c-accent-dark); }
+
+/* 表单 */
+.form { background: var(--c-surface); border-radius: var(--radius); padding: 0 var(--sp-l); margin-bottom: var(--sp-m); border: 1rpx solid var(--c-line); }
+.field { display: flex; align-items: center; min-height: 104rpx; border-bottom: 1rpx solid var(--c-line); }
+.field:last-child { border-bottom: none; }
+.field .label { width: 180rpx; color: var(--c-grey); flex-shrink: 0; }
+.field .control { flex: 1; text-align: right; min-width: 0; }
+.field input, .field picker { flex: 1; text-align: right; }
+.field.column { flex-direction: column; align-items: stretch; padding: 24rpx 0; }
+.field.column .label { width: auto; margin-bottom: 16rpx; }
+.field.column .control { text-align: left; }
+.placeholder { color: var(--c-placeholder); }
+.textarea { width: 100%; min-height: 160rpx; background: var(--c-surface-2); border: 1rpx solid var(--c-line); border-radius: 12rpx; padding: 20rpx; box-sizing: border-box; font-size: 28rpx; }
+.hint { font-size: 22rpx; color: var(--c-muted); padding: 12rpx 8rpx 0; }
+
+/* 分段选择 */
+.segment { display: flex; background: var(--c-surface); border: 1rpx solid var(--c-border); border-radius: var(--radius-md); padding: 6rpx; }
+.segment .seg { flex: 1; text-align: center; height: 64rpx; line-height: 64rpx; border-radius: 12rpx; color: var(--c-grey); font-size: 26rpx; }
+.segment .seg.on { background: var(--c-accent); color: var(--c-on-accent); font-weight: 500; }
+
+/* 选项片 */
+.chips { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.chip { padding: 0 28rpx; height: 64rpx; line-height: 64rpx; border-radius: 32rpx; background: var(--c-surface); color: var(--c-grey); font-size: 26rpx; border: 1rpx solid var(--c-border); }
+.chip.on { background: var(--c-accent-soft); color: var(--c-accent); border-color: var(--c-accent); }
+
+/* 头像 */
+.avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: var(--c-bg-grey); color: var(--c-ink); border: 1rpx solid var(--c-line); display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 600; flex-shrink: 0; overflow: hidden; }
+.avatar image { width: 100%; height: 100%; }
+.avatar.lg { width: 128rpx; height: 128rpx; font-size: 48rpx; }
+
+/* 列表项 */
+.cell { display: flex; align-items: center; padding: 28rpx 0; border-bottom: 1rpx solid var(--c-line); }
+.cell:last-child { border-bottom: none; }
+.cell .icon { width: 40rpx; height: 40rpx; margin-right: 24rpx; }
+.cell .arrow { width: 32rpx; height: 32rpx; margin-left: 12rpx; }
+
+/* 统计 */
+.stats { display: flex; }
+.stat { flex: 1; text-align: center; }
+.stat .num { font-size: 44rpx; font-weight: 600; font-family: var(--font-num); color: var(--c-ink); }
+.stat .num.accent { color: var(--c-accent); }
+.num { font-family: var(--font-num); }
+.stat .lbl { font-size: 22rpx; color: var(--c-muted); }
+
+.load-more { text-align: center; color: var(--c-muted); font-size: 24rpx; padding: 24rpx 0; }
+.footer-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.96); border-top: 1rpx solid var(--c-line); z-index: 50; }

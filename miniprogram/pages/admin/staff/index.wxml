@@ -1,0 +1,41 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="page-title">员工管理</view>
+  <view class="page-sub">搜索已注册用户并授予教师、管理员或店主角色，一个账户可同时拥有多个角色</view>
+
+  <view class="card">
+	<view class="bold mb">搜索用户</view>
+	<view class="row">
+	  <input class="control grow" value="{{keyword}}" placeholder="姓名或微信号" placeholder-class="placeholder" maxlength="30" bindinput="onKeyword" bindconfirm="search" />
+	  <text class="small accent ml" bindtap="search">搜索</text>
+	</view>
+	<block wx:if="{{searched}}">
+	  <view class="divider"></view>
+	  <view wx:if="{{!results.length}}" class="tiny muted">未找到已注册用户</view>
+	  <view wx:for="{{results}}" wx:key="userId" class="cell">
+		<view class="grow">
+		  <text class="bold">{{item.name}}</text><text wx:if="{{item.isSelf}}" class="tiny muted">（我）</text>
+		  <view class="tiny muted">{{item.wxid || '未填写微信号'}} · {{item.roleLabel}}</view>
+		</view>
+		<text class="small accent" data-src="results" data-i="{{index}}" bindtap="manage">授权</text>
+	  </view>
+	</block>
+  </view>
+
+  <view class="section-title">员工列表</view>
+  <view class="card list">
+	<view wx:for="{{staff}}" wx:key="userId" class="cell">
+	  <view class="avatar"><image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" /><text wx:else>{{f.initial(item.name)}}</text></view>
+	  <view class="grow ml">
+		<view><text class="bold">{{item.name}}</text><text wx:if="{{item.isSelf}}" class="tiny muted">（我）</text></view>
+		<view class="row mt-s">
+		  <text class="tag dark">{{item.roleLabel}}</text>
+		  <text wx:if="{{item.status === 'suspended'}}" class="tag danger ml">已停用</text>
+		</view>
+	  </view>
+	  <text wx:if="{{item.grantable.length || item.revocable.length}}" class="small accent" data-src="staff" data-i="{{index}}" bindtap="manage">管理</text>
+	</view>
+  </view>
+
+  <confirm-modal show="{{modal.show}}" title="{{modal.title}}" content="{{modal.content}}" need-reason danger="{{!modal.grant}}" bind:confirm="confirm" bind:cancel="closeModal" />
+</view>

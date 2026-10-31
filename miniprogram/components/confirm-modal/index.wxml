@@ -1,0 +1,14 @@
+<view wx:if="{{show}}" class="mask" catchtouchmove="noop">
+  <view class="box">
+	<view class="title">{{title}}</view>
+	<view wx:if="{{content}}" class="content">{{content}}</view>
+	<slot></slot>
+	<block wx:if="{{needReason}}">
+	  <textarea class="reason" value="{{reason}}" placeholder="{{reasonPlaceholder}}" placeholder-class="ph" maxlength="200" bindinput="onReason" auto-height="{{false}}" fixed />
+	</block>
+	<view class="btns">
+	  <view class="b cancel" bindtap="cancel">{{cancelText}}</view>
+	  <view class="b ok {{danger ? 'danger' : ''}} {{disabled ? 'dis' : ''}}" bindtap="confirm">{{confirmText}}</view>
+	</view>
+  </view>
+</view>

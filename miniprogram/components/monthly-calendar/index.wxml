@@ -1,0 +1,18 @@
+<view class="mc">
+  <view class="head">
+	<view class="nav" bindtap="prev"><image src="/assets/icons/left.svg" /></view>
+	<text class="t">{{title}}</text>
+	<view class="nav" bindtap="next"><image src="/assets/icons/right.svg" /></view>
+  </view>
+  <view class="grid wk">
+	<text wx:for="{{weekdays}}" wx:key="*this" class="w">{{item}}</text>
+  </view>
+  <view class="grid">
+	<view wx:for="{{cells}}" wx:key="date"
+	  class="cell {{item.inMonth ? '' : 'out'}} {{item.isSelected ? 'sel' : ''}} {{item.isToday ? 'today' : ''}} {{item.disabled ? 'dis' : ''}}"
+	  data-date="{{item.date}}" data-disabled="{{item.disabled}}" bindtap="pick">
+	  <text class="d">{{item.day}}</text>
+	  <text wx:if="{{item.count}}" class="n">{{item.count}}节</text>
+	</view>
+  </view>
+</view>

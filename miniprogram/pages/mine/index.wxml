@@ -1,0 +1,43 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="card row head" bindtap="toProfile">
+	<view class="avatar lg">
+	  <image wx:if="{{avatar}}" src="{{avatar}}" mode="aspectFill" />
+	  <text wx:else>{{f.initial(name)}}</text>
+	</view>
+	<view class="grow info">
+	  <view class="nm">{{name || '未注册'}}</view>
+	  <view class="row mt-s">
+		<text class="tag dark">{{roleLabel}}</text>
+		<text wx:if="{{student.studentNo}}" class="tiny muted ml">学号 {{student.studentNo}}</text>
+	  </view>
+	</view>
+	<image class="arrow" src="/assets/icons/right-muted.svg" />
+  </view>
+
+  <block wx:if="{{student}}">
+	<view class="section-title">我的会员卡</view>
+	<loading-skeleton wx:if="{{loadingMs}}" count="1" />
+	<block wx:else>
+	  <membership-card wx:for="{{memberships}}" wx:key="_id" item="{{item}}" />
+	  <empty-state wx:if="{{!memberships.length}}" icon="card" title="暂未开通会员卡" desc="请联系工作室前台办理" />
+	</block>
+  </block>
+
+  <view class="section-title">设置</view>
+  <view class="card list">
+	<view class="cell" bindtap="toProfile">
+	  <image class="icon" src="/assets/icons/edit.svg" /><text class="grow">个人资料</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	</view>
+	<view wx:if="{{!isStaff}}" class="cell" bindtap="toStaffJoin">
+	  <image class="icon" src="/assets/icons/key.svg" /><text class="grow">成为员工</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	</view>
+	<view class="cell" bindtap="toPrivacy">
+	  <image class="icon" src="/assets/icons/shield.svg" /><text class="grow">隐私政策与个人信息</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	</view>
+	<view wx:if="{{devMode}}" class="cell" bindtap="toDev">
+	  <image class="icon" src="/assets/icons/key.svg" /><text class="grow">开发测试模式</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	</view>
+  </view>
+  <view class="ver tiny muted">{{studioName}}</view>
+</view>

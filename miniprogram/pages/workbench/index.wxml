@@ -1,0 +1,39 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="row between">
+	<view>
+	  <view class="page-title">{{greeting}}，{{name}}</view>
+	  <view class="page-sub">{{roleLabel}} · {{f.dateCN(date)}}</view>
+	</view>
+  </view>
+
+  <view class="card stats">
+	<view class="stat"><view class="num">{{totals.classes}}</view><view class="lbl">课程</view></view>
+	<view class="stat"><view class="num accent">{{totals.checkedIn}}</view><view class="lbl">已签到</view></view>
+	<view class="stat"><view class="num">{{totals.expected || '—'}}</view><view class="lbl">名单应到</view></view>
+	<view class="stat"><view class="num">{{totals.expected ? totals.notCheckedIn : '—'}}</view><view class="lbl">未签到</view></view>
+  </view>
+
+  <view wx:if="{{menus.length}}" class="grid card">
+	<view wx:for="{{menus}}" wx:key="url" class="g" data-url="{{item.url}}" bindtap="go">
+	  <view class="gi"><image src="/assets/icons/{{item.icon}}.svg" /></view>
+	  <text>{{item.text}}</text>
+	</view>
+  </view>
+
+  <weekly-calendar week-start="{{weekStart}}" selected="{{date}}" marks="{{marks}}" today="{{today}}" allow-past bind:weekchange="onWeek" bind:select="onSelect" />
+
+  <view class="section-title">
+	<text>{{date === today ? '今日课程' : f.dateCN(date)}}</text>
+	<view wx:if="{{canAll}}" class="segment sm">
+	  <view class="seg {{scope === 'all' ? 'on' : ''}}" data-s="all" bindtap="setScope">全部</view>
+	  <view class="seg {{scope === 'mine' ? 'on' : ''}}" data-s="mine" bindtap="setScope">我的</view>
+	</view>
+  </view>
+
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:else>
+	<class-card wx:for="{{classes}}" wx:key="_id" item="{{item}}" mode="staff" bind:open="openClass" />
+	<empty-state wx:if="{{!classes.length}}" icon="calendar" title="当天没有课程" />
+  </block>
+</view>

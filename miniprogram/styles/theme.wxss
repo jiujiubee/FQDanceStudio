@@ -1,0 +1,65 @@
+/*
+ * FQ Dance Studio — 设计令牌（Design Tokens）
+ * 黑白灰为主体，勃艮第红为唯一品牌强调色。
+ * 所有页面与组件只通过以下变量取色，禁止直接写死色值。
+ */
+page {
+  /* 品牌色 */
+  --c-accent: #722F3E;          /* 主勃艮第：主按钮、选中、激活、重要数字 */
+  --c-accent-dark: #55202D;     /* 深勃艮第：按下态、警示文字 */
+  --c-accent-soft: #F3E9EB;     /* 浅勃艮第：小面积强调底色 */
+
+  /* 黑白灰 */
+  --c-black: #111111;
+  --c-charcoal: #252525;
+  --c-dark-grey: #555555;
+  --c-mid-grey: #888888;
+  --c-light-grey: #D9D9D9;
+  --c-bg-grey: #F5F5F5;
+  --c-off-white: #FAFAFA;
+  --c-white: #FFFFFF;
+
+  /* 语义：文字 */
+  --c-ink: var(--c-black);            /* 主文字 */
+  --c-text-2: var(--c-charcoal);      /* 次主文字 */
+  --c-grey: var(--c-dark-grey);       /* 辅助文字（对比度≥7:1） */
+  --c-muted: var(--c-mid-grey);       /* 弱化文字、占位、非活跃 */
+  --c-placeholder: var(--c-mid-grey);
+  --c-on-accent: var(--c-white);
+
+  /* 语义：背景 / 线条 */
+  --c-bg: var(--c-bg-grey);           /* 页面底色 */
+  --c-surface: var(--c-white);        /* 卡片 */
+  --c-surface-2: var(--c-off-white);  /* 输入框、内嵌区块 */
+  --c-line: #EBEBEB;                  /* 细分割线（介于背景灰与浅灰之间） */
+  --c-border: var(--c-light-grey);    /* 描边、禁用边框 */
+  --c-disabled-bg: var(--c-light-grey);
+  --c-disabled-text: var(--c-mid-grey);
+  --c-mask: rgba(17, 17, 17, 0.5);
+
+  /* 语义：状态（保持单色，不使用红绿） */
+  --c-success: var(--c-accent);       /* 已签到 */
+  --c-danger: var(--c-accent-dark);   /* 危险操作 / 错误提示 */
+
+  /* 圆角 */
+  --radius-sm: 8rpx;
+  --radius-md: 16rpx;
+  --radius: 20rpx;                    /* 卡片统一圆角 */
+  --radius-lg: 28rpx;
+  --radius-pill: 999rpx;
+
+  /* 间距 */
+  --sp-xs: 8rpx;
+  --sp-s: 16rpx;
+  --sp-m: 24rpx;
+  --sp-l: 32rpx;
+  --sp-xl: 48rpx;
+
+  /* 阴影：极轻 */
+  --shadow: 0 2rpx 12rpx rgba(17, 17, 17, 0.04);
+  --shadow-pop: 0 8rpx 32rpx rgba(17, 17, 17, 0.08);
+
+  /* 字体 */
+  --font-num: "DIN Alternate", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}

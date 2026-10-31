@@ -1,0 +1,35 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="mc {{item.status !== 'active' ? 'off' : ''}}">
+  <view class="top">
+	<view>
+	  <view class="type">{{f.label('mt', item.type)}}</view>
+	  <view class="nm">{{item.name}}</view>
+	</view>
+	<text class="st">{{f.label('ms', item.status)}}</text>
+  </view>
+  <view class="mid">
+	<block wx:if="{{item.policyMode === 'credits' || item.policyMode === 'quota'}}">
+	  <text class="big">{{item.remainingCredits}}</text><text class="unit">次剩余</text>
+	  <text class="small-r">已用 {{item.usedCredits}} / 共 {{item.totalCredits}}</text>
+	</block>
+	<block wx:elif="{{item.policyMode === 'limited'}}">
+	  <text class="big">{{item.policy.monthlyLimit - (item.monthUsed || 0)}}</text>
+	  <text class="unit">本月剩余次数</text>
+	  <text class="small-r">本月已上 {{item.monthUsed || 0}} 节</text>
+	</block>
+	<block wx:else>
+	  <text class="big">不限</text>
+	  <text class="unit">次数</text>
+	  <text class="small-r">已上 {{item.usedCredits || 0}} 节</text>
+	</block>
+  </view>
+  <view class="bot">
+	<text>{{f.label('pm', item.policyMode)}} · 有效期 {{item.startDate}} 至 {{item.expireDate}}</text>
+  </view>
+  <view wx:if="{{manage}}" class="ops">
+	<text wx:if="{{item.policyMode === 'credits' || item.policyMode === 'quota'}}" class="op" bindtap="adjust">调整次数</text>
+	<text class="op" bindtap="renew">续费/延期</text>
+	<text class="op" bindtap="history">历史</text>
+	<text class="op" bindtap="toggle">{{item.status === 'suspended' ? '解冻' : '冻结'}}</text>
+  </view>
+</view>

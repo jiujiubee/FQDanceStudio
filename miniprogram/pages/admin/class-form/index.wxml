@@ -1,0 +1,76 @@
+<view class="container">
+  <view wx:if="{{!editId}}" class="segment mb">
+	<view wx:for="{{modes}}" wx:key="key" class="seg {{mode === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="setMode">{{item.text}}</view>
+  </view>
+
+  <view class="form">
+	<view class="field">
+	  <text class="label">课程名称</text>
+	  <input class="control" value="{{form.name}}" placeholder="如：爵士基础" placeholder-class="placeholder" maxlength="40" data-k="name" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">授课老师</text>
+	  <picker class="control" range="{{teachers}}" range-key="name" value="{{teacherIndex}}" bindchange="onTeacher">
+		<view class="{{teacherIndex < 0 ? 'placeholder' : ''}}">{{teacherIndex < 0 ? '请选择' : teachers[teacherIndex].name}}</view>
+	  </picker>
+	</view>
+	<view class="field">
+	  <text class="label">开始时间</text>
+	  <picker class="control" mode="time" value="{{form.startTime}}" bindchange="onTime"><view>{{form.startTime}}</view></picker>
+	</view>
+	<view class="field">
+	  <text class="label">时长（分钟）</text>
+	  <input class="control" type="number" value="{{form.duration}}" maxlength="3" data-k="duration" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">人数上限</text>
+	  <input class="control" type="number" value="{{form.capacity}}" placeholder="选填，仅作展示" placeholder-class="placeholder" maxlength="3" data-k="capacity" bindinput="onInput" />
+	</view>
+  </view>
+
+  <view class="form">
+	<block wx:if="{{mode === 'single'}}">
+	  <view class="field">
+		<text class="label">上课日期</text>
+		<picker class="control" mode="date" value="{{form.date}}" start="{{today}}" bindchange="onDate" data-k="date"><view>{{form.date}}</view></picker>
+	  </view>
+	</block>
+	<block wx:if="{{mode === 'weekly'}}">
+	  <view class="field column">
+		<text class="label">每周上课</text>
+		<view class="chips">
+		  <view wx:for="{{weekdays}}" wx:key="value" class="chip {{item.on ? 'on' : ''}}" data-i="{{index}}" bindtap="toggleWeekday">{{item.text}}</view>
+		</view>
+	  </view>
+	  <view class="field">
+		<text class="label">开始日期</text>
+		<picker class="control" mode="date" value="{{form.startDate}}" start="{{today}}" bindchange="onDate" data-k="startDate"><view>{{form.startDate}}</view></picker>
+	  </view>
+	  <view class="field">
+		<text class="label">结束日期</text>
+		<picker class="control" mode="date" value="{{form.endDate}}" start="{{form.startDate}}" bindchange="onDate" data-k="endDate"><view>{{form.endDate}}</view></picker>
+	  </view>
+	</block>
+  </view>
+  <block wx:if="{{mode === 'multi'}}">
+	<view class="small grey mb">点选多个上课日期（已选 {{dates.length}} 天）</view>
+	<monthly-calendar multiple selected="{{dates}}" min-date="{{today}}" bind:change="onDates" />
+	<view class="gap"></view>
+  </block>
+
+  <view class="form">
+	<view class="field column">
+	  <text class="label">课程简介</text>
+	  <textarea class="textarea" value="{{form.description}}" maxlength="500" placeholder="选填" data-k="description" bindinput="onInput" />
+	</view>
+	<view wx:if="{{editId}}" class="field column">
+	  <text class="label">修改原因</text>
+	  <input class="control" value="{{form.reason}}" placeholder="选填，记录于操作日志" placeholder-class="placeholder" maxlength="200" data-k="reason" bindinput="onInput" />
+	</view>
+  </view>
+  <view wx:if="{{preview}}" class="hint">{{preview}}</view>
+
+  <view class="footer-bar">
+	<button class="btn" hover-class="btn-hover" disabled="{{busy}}" bindtap="submit">{{editId ? '保存修改' : '创建排课'}}</button>
+  </view>
+</view>

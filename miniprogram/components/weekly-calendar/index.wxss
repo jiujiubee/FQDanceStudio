@@ -1,0 +1,19 @@
+.wk { background: var(--c-white); border-radius: 20rpx; padding: 24rpx 16rpx 20rpx; box-shadow: var(--shadow); border: 1rpx solid var(--c-line); }
+.head { display: flex; align-items: center; justify-content: space-between; padding: 0 8rpx 20rpx; }
+.nav { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.nav image { width: 36rpx; height: 36rpx; }
+.nav.off { opacity: .35; }
+.title { display: flex; flex-direction: column; align-items: center; }
+.t { font-size: 28rpx; font-weight: 600; letter-spacing: 1rpx; }
+.back { font-size: 22rpx; color: var(--c-accent); margin-top: 4rpx; }
+.days { display: flex; }
+.day { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 14rpx 0 12rpx; border-radius: 18rpx; margin: 0 4rpx; }
+.wd { font-size: 22rpx; color: var(--c-ink); }
+.dn { font-size: 34rpx; font-weight: 600; margin-top: 6rpx; font-family: var(--font-num); }
+.dot { width: 8rpx; height: 8rpx; border-radius: 50%; margin-top: 8rpx; background: transparent; }
+.dot.has { background: var(--c-accent); }
+.day.past .dn { color: var(--c-muted); }
+.day.today .dn { color: var(--c-accent); }
+.day.sel { background: var(--c-accent); }
+.day.sel .wd, .day.sel .dn { color: var(--c-on-accent); }
+.day.sel .dot.has { background: var(--c-white); }

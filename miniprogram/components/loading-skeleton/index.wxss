@@ -1,0 +1,7 @@
+.card { display: flex; align-items: center; background: var(--c-white); border-radius: 20rpx; padding: 28rpx; margin-bottom: 20rpx; }
+.a { width: 88rpx; height: 72rpx; border-radius: 12rpx; }
+.b { flex: 1; margin-left: 24rpx; }
+.l1 { height: 30rpx; width: 60%; border-radius: 8rpx; }
+.l2 { height: 22rpx; width: 40%; border-radius: 8rpx; margin-top: 16rpx; }
+.a, .l1, .l2 { background: linear-gradient(90deg, var(--c-bg-grey) 25%, var(--c-line) 50%, var(--c-bg-grey) 75%); background-size: 400% 100%; animation: sh 1.4s ease infinite; }
+@keyframes sh { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }

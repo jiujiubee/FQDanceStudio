@@ -1,0 +1,24 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="page-title">课时流水</view>
+  <view class="page-sub">{{name ? name + ' 的' : '全部'}}余额变动记录</view>
+  <scroll-view scroll-x class="types mb">
+	<view wx:for="{{types}}" wx:key="key" class="chip {{type === item.key ? 'on' : ''}}" data-k="{{item.key}}" bindtap="setType">{{item.text}}</view>
+  </scroll-view>
+
+  <loading-skeleton wx:if="{{loading && !items.length}}" count="4" />
+  <view wx:for="{{items}}" wx:key="_id" class="card tx">
+	<view class="row between">
+	  <view>
+		<text class="bold">{{f.label('tx', item.type)}}</text>
+		<text wx:if="{{!studentId}}" class="small grey"> · {{item.studentName}}</text>
+	  </view>
+	  <text class="amt {{item.amount > 0 ? 'success' : item.amount < 0 ? 'danger' : ''}}">{{f.signed(item.amount)}}</text>
+	</view>
+	<view class="tiny muted">{{item.previousBalance}} → {{item.newBalance}} · 操作人 {{item.operatorName || '—'}}</view>
+	<view wx:if="{{item.reason}}" class="small grey">{{item.reason}}</view>
+	<view class="tiny muted">{{f.full(item.createdAt)}}</view>
+  </view>
+  <empty-state wx:if="{{!loading && !items.length}}" icon="ledger" title="暂无流水" />
+  <view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+</view>

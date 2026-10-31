@@ -1,0 +1,30 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="row between mb">
+	<view class="page-title">排课管理</view>
+	<button wx:if="{{canManage}}" class="btn small" hover-class="btn-hover" bindtap="create">新建排课</button>
+  </view>
+
+  <monthly-calendar month="{{month}}" selected="{{[date]}}" marks="{{marks}}" bind:monthchange="onMonth" bind:select="onSelect" />
+
+  <view class="section-title">
+	<text>{{f.dateCN(date)}}</text>
+	<text class="extra">{{dayClasses.length}} 节</text>
+  </view>
+  <loading-skeleton wx:if="{{loading}}" count="2" />
+  <block wx:else>
+	<view wx:for="{{dayClasses}}" wx:key="_id">
+	  <class-card item="{{item}}" mode="plain" bind:open="open">
+		<view wx:if="{{canCancel && item.status !== 'cancelled'}}" class="ops">
+		  <text class="op" data-id="{{item._id}}" catchtap="edit">编辑</text>
+		  <text class="op" data-id="{{item._id}}" catchtap="roster">名单</text>
+		  <text class="op danger" data-id="{{item._id}}" catchtap="askCancel">取消本节</text>
+		  <text wx:if="{{item.seriesId}}" class="op danger" data-sid="{{item.seriesId}}" catchtap="askCancelSeries">取消整批</text>
+		</view>
+	  </class-card>
+	</view>
+	<empty-state wx:if="{{!dayClasses.length}}" icon="calendar" title="当天没有课程" />
+  </block>
+
+  <confirm-modal show="{{modal.show}}" title="{{modal.title}}" content="{{modal.content}}" need-reason reason-placeholder="请填写取消原因（学员可见）" danger confirm-text="确认取消" bind:confirm="doCancel" bind:cancel="closeModal" />
+</view>

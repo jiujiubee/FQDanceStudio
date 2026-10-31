@@ -1,0 +1,33 @@
+<view class="container">
+  <view class="page-title">隐私政策</view>
+  <view class="page-sub">版本 {{version}} · 适用于 {{studioName}} 小程序</view>
+
+  <view class="card doc">
+	<view class="h">一、我们收集的信息</view>
+	<view class="p">为提供课程查看、签到与会员管理服务，我们会收集：姓名、微信号（选填）、手机号（选填）、头像（选填）、性别与生日（选填）、紧急联系人（选填），以及您的签到记录、会员卡与课时变动记录。我们通过微信登录获得您在本小程序中的唯一标识（OpenID），用于识别账户，不会获取您的微信密码或聊天记录。</view>
+	<view class="h">二、使用目的</view>
+	<view class="p">上述信息仅用于：识别学员身份、记录出勤、计算与扣减课时、工作室内部教学安排与联系。我们不会将您的信息用于广告推送，也不会出售给任何第三方。</view>
+	<view class="h">三、存储与安全</view>
+	<view class="p">数据存储于腾讯云云开发中国大陆境内节点，不进行跨境传输。所有数据仅能通过受权限控制的服务端接口访问；教师仅能查看与其课程相关的学员必要信息，无法查看手机号与课时余额等信息。所有关键操作均记录审计日志。</view>
+	<view class="h">四、保存期限</view>
+	<view class="p">账户信息在您使用期间保存。注销后，我们将删除或去标识化您的个人信息；出于财务对账需要，课时流水与出勤记录将以去标识化形式按法定期限保存。</view>
+	<view class="h">五、您的权利</view>
+	<view class="p">依据《个人信息保护法》，您有权查阅、复制、更正、删除个人信息及注销账户。您可在下方直接导出个人信息副本或注销账户，也可通过 {{contact}} 联系我们。</view>
+	<view class="h">六、未成年人保护</view>
+	<view class="p">若学员为不满十四周岁的未成年人，应由监护人阅读本政策并代为注册与同意。</view>
+  </view>
+
+  <block wx:if="{{registered}}">
+	<view class="section-title">个人信息管理</view>
+	<view class="card list">
+	  <view class="cell" bindtap="exportData">
+		<image class="icon" src="/assets/icons/download.svg" /><text class="grow">导出我的个人信息</text>
+	  </view>
+	  <view class="cell" bindtap="askDelete">
+		<image class="icon" src="/assets/icons/close.svg" /><text class="grow danger">注销账户</text>
+	  </view>
+	</view>
+  </block>
+
+  <confirm-modal show="{{showDelete}}" title="注销账户" danger confirm-text="确认注销" content="注销后将解除微信关联并删除您的个人信息，剩余课时将无法使用，此操作不可撤销。" bind:confirm="doDelete" bind:cancel="closeDelete" />
+</view>

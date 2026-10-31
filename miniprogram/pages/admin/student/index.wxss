@@ -1,0 +1,11 @@
+.info { margin-left: 24rpx; }
+.nm { font-size: 36rpx; font-weight: 600; }
+.ml { margin-left: 12rpx; }
+.mt-s { margin-top: 16rpx; }
+.info-list { padding: 8rpx 32rpx; }
+.kv { display: flex; justify-content: space-between; padding: 20rpx 0; font-size: 26rpx; border-bottom: 1rpx solid var(--c-line); }
+.kv:last-child { border-bottom: none; }
+.k { color: var(--c-muted); }
+.link { background: var(--c-white); border-radius: 20rpx; padding: 28rpx 32rpx; margin-bottom: 24rpx; }
+.mform { margin-top: 24rpx; }
+.minput { height: 80rpx; line-height: 80rpx; background: var(--c-surface-2); border-radius: 12rpx; padding: 0 20rpx; margin-top: 16rpx; font-size: 28rpx; }

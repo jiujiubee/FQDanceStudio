@@ -1,0 +1,62 @@
+{
+  "pages": [
+    "pages/schedule/index",
+    "pages/history/index",
+    "pages/mine/index",
+    "pages/workbench/index",
+    "pages/register/index",
+    "pages/privacy/index",
+    "pages/dev/index",
+    "pages/profile/index",
+    "pages/teacher/class/index",
+    "pages/admin/classes/index",
+    "pages/admin/class-form/index",
+    "pages/admin/roster/index",
+    "pages/admin/students/index",
+    "pages/admin/student/index",
+    "pages/admin/student-form/index",
+    "pages/admin/staff/index",
+    "pages/admin/ledger/index",
+    "pages/admin/settings/index",
+    "pages/admin/audit/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "FQ Dance Studio",
+    "backgroundColor": "#F5F5F5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#111111",
+    "selectedColor": "#722F3E",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/schedule/index", "text": "课程" },
+      { "pagePath": "pages/history/index", "text": "签到记录" },
+      { "pagePath": "pages/workbench/index", "text": "工作台" },
+      { "pagePath": "pages/mine/index", "text": "我的" }
+    ]
+  },
+  "usingComponents": {
+    "weekly-calendar": "/components/weekly-calendar/index",
+    "monthly-calendar": "/components/monthly-calendar/index",
+    "class-card": "/components/class-card/index",
+    "attendance-list": "/components/attendance-list/index",
+    "student-card": "/components/student-card/index",
+    "membership-card": "/components/membership-card/index",
+    "search-bar": "/components/search-bar/index",
+    "confirm-modal": "/components/confirm-modal/index",
+    "empty-state": "/components/empty-state/index",
+    "loading-skeleton": "/components/loading-skeleton/index"
+  },
+  "__usePrivacyCheck__": true,
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "resolveAlias": {
+    "@utils/*": "utils/*"
+  }
+}

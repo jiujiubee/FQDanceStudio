@@ -1,0 +1,116 @@
+<wxs src="../../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:else>
+	<view class="card row">
+	  <view class="avatar lg">
+		<image wx:if="{{st.avatar}}" src="{{st.avatar}}" mode="aspectFill" />
+		<text wx:else>{{f.initial(st.name)}}</text>
+	  </view>
+	  <view class="grow info">
+		<view class="row"><text class="nm">{{st.name}}</text><text wx:if="{{st.status === 'suspended'}}" class="tag danger ml">已停用</text></view>
+		<view class="tiny muted">{{st.studentNo}}</view>
+	  </view>
+	  <text wx:if="{{canManage}}" class="small accent" bindtap="edit">编辑</text>
+	</view>
+
+	<view class="card info-list">
+	  <view class="kv"><text class="k">微信号</text><text>{{st.wxid || '—'}}</text></view>
+	  <view wx:if="{{full}}" class="kv"><text class="k">手机号</text><text>{{st.phone || '—'}}<text wx:if="{{st.phone}}" class="tag ml {{st.phoneVerified ? 'success' : ''}}">{{st.phoneVerified ? '已验证' : '未验证'}}</text></text></view>
+	  <view class="kv"><text class="k">紧急联系人</text><text>{{st.emergencyContact || '—'}}</text></view>
+	  <view wx:if="{{full}}" class="kv"><text class="k">分组</text><text>{{st.groups.length ? st.groups.join('、') : '—'}}</text></view>
+	  <view class="kv"><text class="k">备注</text><text>{{st.remark || '—'}}</text></view>
+	  <view wx:if="{{full && !st.bound}}" class="kv">
+		<text class="k">微信关联</text>
+		<text class="tiny muted">未关联；学员使用该手机号验证注册后自动关联</text>
+	  </view>
+	</view>
+
+	<block wx:if="{{full}}">
+	  <view class="section-title">
+		<text>会员卡</text>
+		<text wx:if="{{canMembership}}" class="extra accent" bindtap="openCreate">+ 开卡</text>
+	  </view>
+	  <membership-card wx:for="{{memberships}}" wx:key="_id" item="{{item}}" manage="{{canMembership || canCredit}}" bind:action="onCardAction" />
+	  <empty-state wx:if="{{!memberships.length}}" icon="card" title="尚未开卡" />
+	  <view wx:if="{{canLedger}}" class="cell link" bindtap="toLedger">
+		<image class="icon" src="/assets/icons/ledger.svg" /><text class="grow">课时流水</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	  </view>
+	</block>
+
+	<view class="section-title">出勤记录</view>
+	<view class="card">
+	  <view wx:for="{{history}}" wx:key="_id" class="cell">
+		<view class="grow">
+		  <view class="small">{{item.className}}</view>
+		  <view class="tiny muted">{{item.classDate}} {{item.startTime}} · {{item.teacherName}}</view>
+		</view>
+		<text class="tag {{item.status === 'present' ? 'success' : item.status === 'absent' ? 'danger' : ''}}">{{f.label('status', item.status)}}</text>
+	  </view>
+	  <view wx:if="{{!history.length}}" class="load-more">暂无记录</view>
+	  <view wx:if="{{historyMore}}" class="load-more accent" bindtap="moreHistory">加载更多</view>
+	</view>
+
+	<button wx:if="{{canSuspend}}" class="btn ghost mt" bindtap="askStatus">{{st.status === 'suspended' ? '恢复学员' : '停用学员'}}</button>
+  </block>
+
+  <confirm-modal show="{{modal.show}}" title="{{modal.title}}" content="{{modal.content}}" need-reason="{{modal.needReason}}" danger="{{modal.danger}}" bind:confirm="onModalConfirm" bind:cancel="closeModal">
+	<view wx:if="{{modal.kind === 'adjust'}}" class="mform">
+	  <view class="segment">
+		<view class="seg {{adj.sign > 0 ? 'on' : ''}}" data-s="1" bindtap="setSign">增加</view>
+		<view class="seg {{adj.sign < 0 ? 'on' : ''}}" data-s="-1" bindtap="setSign">扣减</view>
+	  </view>
+	  <input class="minput" type="number" placeholder="课时数" value="{{adj.n}}" bindinput="onAdjN" />
+	</view>
+	<view wx:if="{{modal.kind === 'renew'}}" class="mform">
+	  <view class="small grey">新到期日期（已按自然月自动计算，可修改）</view>
+	  <picker mode="date" start="{{today}}" value="{{renew.expireDate}}" bindchange="onRenewDate"><view class="minput">{{renew.expireDate}}</view></picker>
+	  <input wx:if="{{(renew.policyMode === 'credits' || renew.policyMode === 'quota') && !renew.changePolicy}}" class="minput" type="number" placeholder="同时增加次数（选填）" value="{{renew.credits}}" bindinput="onRenewCredits" />
+	  <block wx:if="{{renew.type !== 'CLASS_PASS'}}">
+		<view class="small accent mt-s" bindtap="toggleRenewPolicy">{{renew.changePolicy ? '保持原出勤策略' : '修改出勤策略 / 额度'}}</view>
+		<block wx:if="{{renew.changePolicy}}">
+		  <view class="segment mt-s">
+			<view class="seg {{renew.policyMode === 'unlimited' ? 'on' : ''}}" data-m="unlimited" bindtap="setRenewPolicy">不限次数</view>
+			<view class="seg {{renew.policyMode === 'quota' ? 'on' : ''}}" data-m="quota" bindtap="setRenewPolicy">固定次数</view>
+		  </view>
+		  <input wx:if="{{renew.policyMode === 'quota'}}" class="minput" type="number" placeholder="剩余可用次数" value="{{renew.quota}}" bindinput="onRenewQuota" />
+		</block>
+	  </block>
+	</view>
+	<view wx:if="{{modal.kind === 'history'}}" class="mform hist">
+	  <view wx:for="{{hist}}" wx:key="_id" class="cell">
+		<view class="grow">
+		  <view class="small">{{item.typeText}} <text wx:if="{{item.amount}}" class="accent">{{f.signed(item.amount)}}</text></view>
+		  <view class="tiny muted">{{f.full(item.createdAt)}} · {{item.reason}}</view>
+		</view>
+	  </view>
+	  <view wx:if="{{!hist.length}}" class="load-more">暂无记录</view>
+	</view>
+	<view wx:if="{{modal.kind === 'create'}}" class="mform">
+	  <view class="segment">
+		<view class="seg {{nc.type === 'CLASS_PASS' ? 'on' : ''}}" data-t="CLASS_PASS" bindtap="setNcType">次卡</view>
+		<view class="seg {{nc.type === 'MONTHLY' ? 'on' : ''}}" data-t="MONTHLY" bindtap="setNcType">月卡</view>
+		<view class="seg {{nc.type === 'QUARTERLY' ? 'on' : ''}}" data-t="QUARTERLY" bindtap="setNcType">季卡</view>
+	  </view>
+	  <block wx:if="{{nc.type === 'CLASS_PASS'}}">
+		<view class="chips mt-s">
+		  <view wx:for="{{presets}}" wx:key="*this" class="chip {{nc.credits == item ? 'on' : ''}}" data-n="{{item}}" bindtap="setPreset">{{item}}次</view>
+		</view>
+		<input class="minput" type="number" placeholder="课时数" value="{{nc.credits}}" data-k="credits" bindinput="onNc" />
+	  </block>
+	  <block wx:else>
+		<input class="minput" type="number" placeholder="{{nc.type === 'QUARTERLY' ? '自然月数（默认3）' : '自然月数（默认1）'}}" value="{{nc.months}}" data-k="months" bindinput="onNc" />
+		<view class="segment mt-s">
+		  <view class="seg {{nc.policyMode === 'unlimited' ? 'on' : ''}}" data-m="unlimited" bindtap="setNcPolicy">不限次数</view>
+		  <view class="seg {{nc.policyMode === 'quota' ? 'on' : ''}}" data-m="quota" bindtap="setNcPolicy">固定次数</view>
+		</view>
+		<input wx:if="{{nc.policyMode === 'quota'}}" class="minput" type="number" placeholder="有效期内可上课次数" value="{{nc.quota}}" data-k="quota" bindinput="onNc" />
+	  </block>
+	  <view class="small grey mt-s">生效日期</view>
+	  <picker mode="date" value="{{nc.startDate}}" bindchange="onNcStart"><view class="minput">{{nc.startDate}}</view></picker>
+	  <view class="small grey mt-s">到期日期（含当天）<text wx:if="{{nc.customExpire}}" class="accent ml" bindtap="resetNcExpire">恢复自动计算</text></view>
+	  <picker mode="date" start="{{nc.startDate}}" value="{{nc.expireDate}}" bindchange="onNcExpire"><view class="minput">{{nc.expireDate}}{{nc.customExpire ? '（手动指定）' : ''}}</view></picker>
+	  <input class="minput" type="digit" placeholder="实收金额（元，选填）" value="{{nc.price}}" data-k="price" bindinput="onNc" />
+	</view>
+  </confirm-modal>
+</view>

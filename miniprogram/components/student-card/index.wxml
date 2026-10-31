@@ -1,0 +1,30 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="sc" bindtap="tap">
+  <view class="avatar">
+	<image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
+	<text wx:else>{{f.initial(item.name)}}</text>
+  </view>
+  <view class="grow body">
+	<view class="row">
+	  <text class="nm ellipsis">{{item.name}}</text>
+	  <text wx:if="{{item.status === 'suspended'}}" class="tag danger">已停用</text>
+	  <text wx:if="{{item.bound === false}}" class="tag">未绑定微信</text>
+	</view>
+	<view class="sub ellipsis">
+	  <text wx:if="{{item.studentNo}}">{{item.studentNo}}</text>
+	  <text wx:if="{{item.wxid}}"> · 微信 {{item.wxid}}</text>
+	</view>
+  </view>
+  <view class="right">
+	<block wx:if="{{item.membershipSummary}}">
+	  <text class="lbl">{{item.membershipSummary.label}}</text>
+	  <text class="tiny {{item.membershipSummary.status === 'active' ? 'muted' : 'danger'}}">{{f.label('ms', item.membershipSummary.status)}}</text>
+	</block>
+	<block wx:elif="{{item.membershipLabel}}">
+	  <text class="lbl">{{item.membershipLabel}}</text>
+	</block>
+  </view>
+  <view wx:if="{{selectable}}" class="ck {{checked ? 'on' : ''}}">
+	<image wx:if="{{checked}}" src="/assets/icons/check-white.svg" />
+  </view>
+</view>

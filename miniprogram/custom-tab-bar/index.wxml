@@ -1,0 +1,6 @@
+<view class="bar">
+  <view wx:for="{{items}}" wx:key="path" class="item {{selected === item.path ? 'on' : ''}}" data-path="{{item.path}}" bindtap="go">
+	<image class="ic" src="/assets/icons/{{item.icon}}{{selected === item.path ? '-active' : ''}}.svg" />
+	<text>{{item.text}}</text>
+  </view>
+</view>

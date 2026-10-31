@@ -1,0 +1,34 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <view class="page-title">签到记录</view>
+  <view class="page-sub">共 {{items.length}}{{hasMore ? '+' : ''}} 条记录</view>
+
+  <view class="segment mb">
+	<view wx:for="{{ranges}}" wx:key="key" class="seg {{range === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="setRange">{{item.text}}</view>
+  </view>
+
+  <view wx:if="{{range === 'custom'}}" class="form">
+	<view class="field">
+	  <text class="label">开始日期</text>
+	  <picker mode="date" value="{{from}}" end="{{to}}" bindchange="onFrom"><view class="control">{{from}}</view></picker>
+	</view>
+	<view class="field">
+	  <text class="label">结束日期</text>
+	  <picker mode="date" value="{{to}}" start="{{from}}" bindchange="onTo"><view class="control">{{to}}</view></picker>
+	</view>
+  </view>
+
+  <loading-skeleton wx:if="{{loading}}" count="4" />
+  <block wx:else>
+	<view wx:for="{{items}}" wx:key="_id" class="card rec">
+	  <view class="row between">
+		<text class="bold ellipsis grow">{{item.className}}</text>
+		<text class="tag {{item.status === 'present' ? 'success' : item.status === 'absent' ? 'danger' : ''}}">{{f.label('status', item.status)}}</text>
+	  </view>
+	  <view class="small grey mt-s">{{f.dateCN(item.classDate)}} {{item.startTime}} - {{item.endTime}} · {{item.teacherName}}</view>
+	  <view wx:if="{{item.checkInAt && item.status === 'present'}}" class="tiny muted">签到时间 {{f.full(item.checkInAt)}}{{item.source === 'manual' ? '（老师代签）' : ''}}</view>
+	</view>
+	<empty-state wx:if="{{!items.length}}" icon="history" title="暂无签到记录" desc="签到后会在这里显示" />
+	<view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+  </block>
+</view>
