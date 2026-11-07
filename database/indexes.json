@@ -1,5 +1,5 @@
 {
-  "_comment": "在 CloudBase 控制台 -> 数据库 -> 集合 -> 索引管理 中创建。unique=true 为唯一索引。",
+  "_comment": "运行 npm run db:setup 自动创建（见 docs/deploy-database.md），或在 CloudBase 控制台 -> 数据库 -> 集合 -> 索引管理 中手动创建。unique=true 为唯一索引。",
   "users": [
     { "name": "openid_unique", "keys": { "openid": 1 }, "unique": true },
     { "name": "role_status", "keys": { "role": 1, "status": 1 } }
@@ -11,7 +11,6 @@
   "students": [
     { "name": "userId", "keys": { "userId": 1 } },
     { "name": "bindCode", "keys": { "bindCode": 1 } },
-    { "name": "studentNo_unique", "keys": { "studentNo": 1 }, "unique": true },
     { "name": "status_name", "keys": { "status": 1, "name": 1 } },
     { "name": "groups", "keys": { "groups": 1 } }
   ],
@@ -28,6 +27,10 @@
   "attendanceRosters": [
     { "name": "classId", "keys": { "classId": 1 } },
     { "name": "seriesId", "keys": { "seriesId": 1 } }
+  ],
+  "classBookings": [
+    { "name": "class_status", "keys": { "classId": 1, "status": 1 } },
+    { "name": "student_date", "keys": { "studentId": 1, "classDate": -1 } }
   ],
   "memberships": [
     { "name": "student_status", "keys": { "studentId": 1, "status": 1 } },

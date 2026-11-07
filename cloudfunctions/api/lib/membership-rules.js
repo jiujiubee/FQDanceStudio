@@ -10,11 +10,18 @@ const TYPE_LIST = [TYPES.CLASS_PASS, TYPES.MONTHLY, TYPES.QUARTERLY];
 const TYPE_LABEL = { CLASS_PASS: '次卡', MONTHLY: '月卡', QUARTERLY: '季卡' };
 /** 各期限卡默认自然月数 */
 const PERIOD_MONTHS = { MONTHLY: 1, QUARTERLY: 3 };
-const LEGACY_TYPE = { pass: TYPES.CLASS_PASS, monthly: TYPES.MONTHLY };
+const LEGACY_TYPE = {
+  pass: TYPES.CLASS_PASS, class_pass: TYPES.CLASS_PASS, classpass: TYPES.CLASS_PASS, credits: TYPES.CLASS_PASS, '次卡': TYPES.CLASS_PASS,
+  monthly: TYPES.MONTHLY, month: TYPES.MONTHLY, '月卡': TYPES.MONTHLY,
+  quarterly: TYPES.QUARTERLY, quarter: TYPES.QUARTERLY, '季卡': TYPES.QUARTERLY,
+};
 
-/** 兼容旧数据：pass → CLASS_PASS，monthly → MONTHLY */
+/** 兼容旧数据/大小写差异：pass、class_pass → CLASS_PASS，monthly → MONTHLY 等 */
 function canonType(t) {
-  return LEGACY_TYPE[t] || t;
+  if (typeof t !== 'string') return t;
+  const s = t.trim();
+  if (TYPE_LIST.includes(s.toUpperCase())) return s.toUpperCase();
+  return LEGACY_TYPE[s.toLowerCase()] || LEGACY_TYPE[s] || s;
 }
 function isPass(m) {
   return canonType(m.type) === TYPES.CLASS_PASS;

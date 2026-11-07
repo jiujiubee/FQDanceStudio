@@ -2,7 +2,7 @@
   <view class="card">
 	<view class="bold">{{cls.name}}</view>
 	<view class="small grey">{{cls.date}} {{cls.startTime}} · {{cls.teacherName}}</view>
-	<view class="hint">设置名单后，系统才会统计「未签到」学员；名单不限制签到，名单外学员也可签到。</view>
+	<view class="hint">名单仅用于统计「未签到」，添加学员不会自动签到；已预约学员会自动出现在上课名单中。</view>
   </view>
 
   <view wx:if="{{hasSeries}}" class="segment mb">
@@ -15,6 +15,7 @@
 	<view class="chips mb">
 	  <view wx:for="{{groups}}" wx:key="*this" class="chip {{selGroups[item] ? 'on' : ''}}" data-g="{{item}}" bindtap="toggleGroup">{{item}}</view>
 	</view>
+	<view wx:if="{{groupMembers.length}}" class="small grey mb">分组学员（{{groupMembers.length}}）：<text wx:for="{{groupMembers}}" wx:key="_id">{{item.name}}{{index < groupMembers.length - 1 ? '、' : ''}}</text></view>
   </block>
 
   <view class="section-title"><text>已选学员（{{selectedList.length}}）</text><text class="extra" bindtap="clearAll">清空</text></view>

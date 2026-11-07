@@ -1,5 +1,5 @@
 import { call, toastError } from '../../utils/api'
-import { can, ensureRegistered, isStaff } from '../../utils/session'
+import { can, ensureRegistered, showStaffUI } from '../../utils/session'
 import { addDays, today as todayStr, weekStart as getWeekStart } from '../../utils/date'
 import { syncTab } from '../../utils/tab'
 
@@ -9,7 +9,8 @@ const MENUS: Menu[] = [
   { text: '排课管理', icon: 'calendar', url: '/pages/admin/classes/index', perm: ['class.manage', 'class.view.all'] },
   { text: '学员管理', icon: 'users', url: '/pages/admin/students/index', perm: ['student.view.all', 'student.view.basic'] },
   { text: '课时流水', icon: 'ledger', url: '/pages/admin/ledger/index', perm: ['transaction.view'] },
-  { text: '员工管理', icon: 'teacher', url: '/pages/admin/staff/index', perm: ['teacher.manage', 'admin.manage'] },
+  { text: '员工管理', icon: 'teacher', url: '/pages/admin/staff/index', perm: ['teacher.manage', 'owner.manage'] },
+  { text: '首页资料', icon: 'dashboard', url: '/pages/admin/studio/index', perm: ['settings.manage', 'teacher.manage'] },
   { text: '系统设置', icon: 'settings', url: '/pages/admin/settings/index', perm: ['settings.manage', 'policy.manage', 'permission.manage'] },
   { text: '操作日志', icon: 'list', url: '/pages/admin/audit/index', perm: ['audit.view'] },
 ]
@@ -31,7 +32,7 @@ Page({
     date: '',
     weekStart: '',
     marks: {} as Record<string, number>,
-    scope: 'all',
+    scope: 'mine',
     canAll: false,
     classes: [] as any[],
     totals: { classes: 0, checkedIn: 0, expected: 0, notCheckedIn: 0 },
@@ -44,7 +45,7 @@ Page({
     const s = await ensureRegistered()
     if (!s) return
     syncTab(this, '/pages/workbench/index')
-    if (!isStaff()) {
+    if (!showStaffUI()) {
       wx.switchTab({ url: '/pages/schedule/index' })
       return
     }
@@ -97,7 +98,9 @@ Page({
   },
 
   setScope(e: WechatMiniprogram.TouchEvent) {
-    this.setData({ scope: e.currentTarget.dataset.s })
+    const scope = e.currentTarget.dataset.s as string
+    if (scope === this.data.scope) return
+    this.setData({ scope, classes: [] })
     this.load()
   },
 

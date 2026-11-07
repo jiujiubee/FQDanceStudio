@@ -15,7 +15,7 @@ const PHONE_RE = /^1[3-9]\d{9}$/;
 const CODE_TTL_MS = 5 * 60 * 1000;
 const RESEND_MS = 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const DUP_MESSAGE = '该手机号已被注册，如需帮助请联系管理员';
+const DUP_MESSAGE = '该手机号已被注册，如需帮助请联系店主';
 
 function normalize(raw) {
   if (raw === undefined || raw === null) return '';
@@ -46,7 +46,7 @@ async function sendSmsCode(ctx, rawPhone, providers) {
   const nowMs = time.now();
   if (prev && prev.sentAt && nowMs - prev.sentAt < RESEND_MS) throw E.rule('TOO_FREQUENT', '发送过于频繁，请稍后再试');
   const sender = providers && providers.sendSms;
-  if (!sender && !ctx.devMode) throw E.rule('SMS_UNAVAILABLE', '短信验证暂未开通，请使用微信手机号快捷验证或联系管理员');
+  if (!sender && !ctx.devMode) throw E.rule('SMS_UNAVAILABLE', '短信验证暂未开通，请使用微信手机号快捷验证或联系店主');
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const doc = { phone, codeHash: hashCode(ctx.userId, phone, code), expiresAt: nowMs + CODE_TTL_MS, attempts: 0, sentAt: nowMs };
   if (prev) await ctx.store.set('phoneVerifications', id, doc);

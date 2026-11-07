@@ -18,6 +18,8 @@ Page({
     page: 0,
     hasMore: false,
     loading: true,
+    total: 0,
+    completedTotal: 0,
   },
 
   async onShow() {
@@ -50,8 +52,8 @@ Page({
     try {
       const params: Record<string, any> = { range: this.data.range, page }
       if (this.data.range === 'custom') Object.assign(params, { from: this.data.from, to: this.data.to })
-      const r = await call<{ items: any[]; hasMore: boolean }>('attendance.myHistory', params)
-      this.setData({ items: page ? this.data.items.concat(r.items) : r.items, hasMore: r.hasMore, page, loading: false })
+      const r = await call<{ items: any[]; hasMore: boolean; total: number; completedTotal: number }>('attendance.myHistory', params)
+      this.setData({ items: page ? this.data.items.concat(r.items) : r.items, hasMore: r.hasMore, page, loading: false, total: r.total || 0, completedTotal: r.completedTotal || 0 })
     } catch (e) {
       this.setData({ loading: false })
       toastError(e)

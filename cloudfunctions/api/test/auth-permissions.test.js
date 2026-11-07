@@ -14,83 +14,52 @@ test('1. 学员自助注册：需同意隐私政策，不可重复注册', async
   assert.equal(again.code, 'ALREADY_REGISTERED');
 });
 
-test('1a. 手机号必填：缺失手机号被拒绝', async () => {
+test('1a. 无需手机号与验证码即可注册：创建 User + Student 并赋予 student 角色', async () => {
   const env = await setup();
-  const r = await env.call('p-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
-  assert.equal(r.code, 'INVALID_ARGUMENT');
-  assert.match(r.message, /手机号/);
-});
-
-test('1b. 手机号格式错误被拒绝（前后端一致的大陆号码规则）', async () => {
-  const env = await setup();
-  for (const p of ['123', '12800000000', '1380000000', '138000000000', 'abcdefghijk', '+1 2025550100']) {
-    const r = await env.call('p-openid', 'auth.registerStudent', { name: '甲', phone: p, smsCode: '123456', agreePrivacy: true });
-    assert.equal(r.code, 'INVALID_ARGUMENT', p);
-  }
-  const s = await env.call('p-openid', 'auth.sendSmsCode', { phone: '10086' });
-  assert.equal(s.code, 'INVALID_ARGUMENT');
-});
-
-test('1c. 手工输入的手机号不视为已验证：无验证码被拒绝，错误验证码被拒绝', async () => {
-  const env = await setup();
-  const r = await env.call('p-openid', 'auth.registerStudent', { name: '甲', phone: '13700000000', agreePrivacy: true });
-  assert.equal(r.code, 'PHONE_NOT_VERIFIED');
-  await env.ok('p-openid', 'auth.sendSmsCode', { phone: '13700000000' });
-  const wrong = await env.call('p-openid', 'auth.registerStudent', { name: '甲', phone: '13700000000', smsCode: '000000' === env.sms['13700000000'] ? '111111' : '000000', agreePrivacy: true });
-  assert.equal(wrong.code, 'SMS_CODE_INVALID');
-  const other = await env.call('p-openid', 'auth.registerStudent', { name: '甲', phone: '13700000001', smsCode: env.sms['13700000000'], agreePrivacy: true });
-  assert.equal(other.code, 'SMS_CODE_INVALID');
-  assert.equal(await env.store.count('students', { phone: '13700000000' }), 0);
-});
-
-test('1d. 重复手机号被拒绝并提示联系管理员', async () => {
-  const env = await setup();
-  await env.registerStudent('a-openid', { name: '甲', phone: '13600000000' });
-  const viaSms = await env.call('b-openid', 'auth.registerStudent', { name: '乙', phone: '136 0000 0000', smsCode: '123456', agreePrivacy: true });
-  assert.equal(viaSms.code, 'PHONE_EXISTS');
-  assert.match(viaSms.message, /联系管理员/);
-  env.wxPhones['dup-code'] = '13600000000';
-  const viaWx = await env.call('c-openid', 'auth.registerStudent', { name: '丙', phoneCode: 'dup-code', agreePrivacy: true });
-  assert.equal(viaWx.code, 'PHONE_EXISTS');
-  const adminDup = await env.call('admin-openid', 'student.create', { name: '丁', phone: '13600000000' });
-  assert.equal(adminDup.code, 'PHONE_EXISTS');
-});
-
-test('1e. 已验证手机号注册：微信快速验证与短信验证均记录验证状态与时间', async () => {
-  const env = await setup();
-  const r = await env.registerStudent('w-openid', { name: '微信', phone: '13500000000' });
+  const r = await env.ok('p-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
   const s = await env.store.get('students', r.studentId);
-  assert.equal(s.phone, '13500000000');
-  assert.equal(s.phoneVerified, true);
-  assert.equal(s.phoneVerifyMethod, 'wechat');
-  assert.ok(s.phoneVerifiedAt > 0);
-
-  await env.ok('m-openid', 'auth.sendSmsCode', { phone: '13500000001' });
-  const again = await env.call('m-openid', 'auth.sendSmsCode', { phone: '13500000001' });
-  assert.equal(again.code, 'TOO_FREQUENT');
-  const r2 = await env.ok('m-openid', 'auth.registerStudent', { name: '短信', phone: '13500000001', smsCode: env.sms['13500000001'], agreePrivacy: true });
-  const s2 = await env.store.get('students', r2.studentId);
-  assert.equal(s2.phoneVerified, true);
-  assert.equal(s2.phoneVerifyMethod, 'sms');
-  const session = await env.ok('m-openid', 'auth.login');
-  assert.equal(session.student.phoneVerified, true);
+  assert.equal(s.userId, env.uid('p-openid'));
+  assert.equal(s.phone, '');
+  assert.equal(s.status, 'active');
+  const u = await env.store.get('users', env.uid('p-openid'));
+  assert.equal(u.studentId, r.studentId);
+  assert.deepEqual(u.roles, ['student']);
+  const session = await env.ok('p-openid', 'auth.login');
+  assert.equal(session.registered, true);
+  assert.equal(session.role, 'student');
 });
 
-test('1f. 管理员登记档案（手机号未验证），学员用同一号码验证注册后自动关联，无需绑定码', async () => {
+test('1b. 姓名必填；手机号选填但格式错误时拒绝', async () => {
   const env = await setup();
-  const created = await env.ok('admin-openid', 'student.create', { name: '线下学员', phone: '13400000000', wxid: 'offline_01' });
-  assert.equal(created.bindCode, undefined);
-  const before = await env.store.get('students', created.studentId);
-  assert.equal(before.phoneVerified, false);
-  const missing = await env.call('admin-openid', 'student.create', { name: '无号' });
-  assert.equal(missing.code, 'INVALID_ARGUMENT');
-  const r = await env.registerStudent('bind-openid', { name: '线下学员', phone: '13400000000' });
-  assert.equal(r.studentId, created.studentId);
-  assert.equal(r.linked, true);
-  const after = await env.store.get('students', created.studentId);
-  assert.equal(after.phoneVerified, true);
-  const dup = await env.call('other-openid', 'auth.registerStudent', { name: 'x', phone: '13400000000', smsCode: '123456', agreePrivacy: true });
-  assert.equal(dup.code, 'PHONE_EXISTS');
+  const noName = await env.call('p-openid', 'auth.registerStudent', { agreePrivacy: true });
+  assert.equal(noName.code, 'INVALID_ARGUMENT');
+  const bad = await env.call('p-openid', 'auth.registerStudent', { name: '甲', phone: '123', agreePrivacy: true });
+  assert.equal(bad.code, 'INVALID_ARGUMENT');
+  const ok = await env.ok('p-openid', 'auth.registerStudent', { name: '甲', phone: '13700000000', agreePrivacy: true });
+  const s = await env.store.get('students', ok.studentId);
+  assert.equal(s.phone, '13700000000');
+});
+
+test('1c. 同一 OpenID 不会重复创建学员档案', async () => {
+  const env = await setup();
+  await env.ok('d-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
+  const again = await env.call('d-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
+  assert.equal(again.code, 'ALREADY_REGISTERED');
+  assert.equal(await env.store.count('students', { userId: env.uid('d-openid') }), 1);
+});
+
+test('1d. 新注册学员（无手机号）出现在店主学员管理列表', async () => {
+  const env = await setup();
+  const r = await env.ok('n-openid', 'auth.registerStudent', { name: '无号学员', agreePrivacy: true });
+  const list = await env.ok('owner-openid', 'student.search', { status: 'all', page: 0 });
+  assert.ok(list.items.some((x) => x._id === r.studentId));
+});
+
+test('1e. 管理员登记学员时手机号可留空', async () => {
+  const env = await setup();
+  const created = await env.ok('owner-openid', 'student.create', { name: '线下学员' });
+  const s = await env.store.get('students', created.studentId);
+  assert.equal(s.phone, '');
 });
 
 test('2. 微信登录：未注册返回 registered=false；OpenID 缺失被拒绝', async () => {
@@ -109,41 +78,50 @@ test('2. 微信登录：未注册返回 registered=false；OpenID 缺失被拒�
   assert.equal(proto.code, 'UNKNOWN_ACTION');
 });
 
-test('3. 店主授权：仅店主可授予店主/管理员；不能修改自己的角色', async () => {
+test('3. 店主授权：仅店主可授予店主；不能修改自己的店主角色；ADMIN 不再是有效角色', async () => {
   const env = await setup();
-  await env.ok('owner2-openid', 'auth.setupAccount', { name: '合伙人', agreePrivacy: true });
+  await env.registerStudent('owner2-openid', { name: '合伙人' });
   const o2 = env.uid('owner2-openid');
-  const adminTry = await env.call('admin-openid', 'staff.grantRole', { userId: o2, role: 'owner' });
-  assert.equal(adminTry.code, 'FORBIDDEN');
+  const teacherTry = await env.call('teacher-openid', 'staff.grantRole', { userId: o2, role: 'owner' });
+  assert.equal(teacherTry.code, 'FORBIDDEN');
   await env.ok('owner-openid', 'staff.grantRole', { userId: o2, role: 'owner' });
-  assert.deepEqual((await env.ok('owner2-openid', 'auth.login')).roles, ['owner']);
+  assert.deepEqual((await env.ok('owner2-openid', 'auth.login')).roles, ['owner', 'student']);
   await env.ok('owner-openid', 'staff.revokeRole', { userId: o2, role: 'owner' });
   const selfTry = await env.call('owner-openid', 'staff.revokeRole', { userId: env.uid('owner-openid'), role: 'owner' });
   assert.equal(selfTry.code, 'FORBIDDEN');
-  const selfAdmin = await env.call('owner-openid', 'staff.grantRole', { userId: env.uid('owner-openid'), role: 'admin' });
-  assert.equal(selfAdmin.code, 'FORBIDDEN');
+  for (const action of ['staff.grantRole', 'staff.revokeRole']) {
+    const r = await env.call('owner-openid', action, { userId: env.uid('teacher-openid'), role: 'admin' });
+    assert.equal(r.code, 'INVALID_ARGUMENT', action);
+  }
+  const perm = await env.call('owner-openid', 'permissions.update', { role: 'admin', permissions: [] });
+  assert.equal(perm.code, 'INVALID_ARGUMENT');
+  const matrix = await env.ok('owner-openid', 'permissions.get');
+  assert.deepEqual(Object.keys(matrix.roles).sort(), ['student', 'teacher']);
+  assert.ok(!matrix.all.includes('admin.manage'));
 });
 
-test('4. 管理员授权边界：可管理教师，不能管理管理员/店主、不能改权限矩阵', async () => {
+test('4. 教师授权边界：仅店主可授予/撤销教师，教师不能管理员工、不能改权限矩阵', async () => {
   const env = await setup();
-  const staff = await env.ok('admin-openid', 'staff.list');
-  const owner = staff.find((u) => u.roles.includes('owner'));
+  const staff = await env.ok('owner-openid', 'staff.list');
   const teacher = staff.find((u) => u.name === '王老师');
-  assert.deepEqual(owner.revocable, []);
-  const r1 = await env.call('admin-openid', 'staff.revokeRole', { userId: owner.userId, role: 'owner' });
+  for (const action of ['staff.list', 'staff.searchUsers']) {
+    const r = await env.call('teacher-openid', action, { keyword: '老师' });
+    assert.equal(r.code, 'FORBIDDEN', action);
+  }
+  const r1 = await env.call('teacher-openid', 'staff.revokeRole', { userId: teacher.userId, role: 'teacher' });
   assert.equal(r1.code, 'FORBIDDEN');
-  const r2 = await env.call('admin-openid', 'staff.grantRole', { userId: teacher.userId, role: 'admin' });
+  const r2 = await env.call('teacher-openid', 'staff.grantRole', { userId: env.uid('student-openid'), role: 'teacher' });
   assert.equal(r2.code, 'FORBIDDEN');
-  await env.ok('admin-openid', 'staff.revokeRole', { userId: teacher.userId, role: 'teacher', reason: '离职' });
+  const r3 = await env.call('teacher-openid', 'permissions.update', { role: 'teacher', permissions: [] });
+  assert.equal(r3.code, 'FORBIDDEN');
+  const bad = await env.call('owner-openid', 'permissions.update', { role: 'teacher', permissions: ['teacher.manage'] });
+  assert.equal(bad.code, 'INVALID_ARGUMENT');
+  await env.ok('owner-openid', 'staff.revokeRole', { userId: teacher.userId, role: 'teacher', reason: '离职' });
   const t = await env.call('teacher2-openid', 'teacher.dashboard', {});
   assert.equal(t.ok, false);
-  const r3 = await env.call('admin-openid', 'permissions.update', { role: 'teacher', permissions: [] });
-  assert.equal(r3.code, 'FORBIDDEN');
-  const r4 = await env.call('admin-openid', 'settings.update', { membership: { monthlyDefaultMode: 'limited', monthlyDefaultLimit: 4, refundOnCancel: true, passDefaultValidDays: 90 } });
-  assert.equal(r4.code, 'FORBIDDEN');
-  // 管理员正常权限
-  await env.ok('admin-openid', 'student.search', { keyword: '小' });
-  await env.ok('admin-openid', 'transaction.list', {});
+  // 原管理员的管理功能归属店主
+  await env.ok('owner-openid', 'student.search', { keyword: '小' });
+  await env.ok('owner-openid', 'transaction.list', {});
 });
 
 test('5. 教师权限限制：不能改课时/会员、只能访问自己的课程、看不到财务信息', async () => {
@@ -155,7 +133,7 @@ test('5. 教师权限限制：不能改课时/会员、只能访问自己的课�
     ['membership.adjustCredits', { membershipId, delta: 5, reason: 'x' }],
     ['membership.create', { studentId: env.studentId, type: 'pass', credits: 5, requestId: 'abcdefgh123' }],
     ['membership.renew', { membershipId }],
-    ['staff.grantRole', { userId: 'u_x', role: 'admin' }],
+    ['staff.grantRole', { userId: 'u_x', role: 'teacher' }],
     ['settings.update', { studioName: 'x' }],
     ['transaction.list', {}],
     ['class.create', { mode: 'single' }],
@@ -179,7 +157,7 @@ test('5. 教师权限限制：不能改课时/会员、只能访问自己的课�
   assert.equal(s.student.membershipSummary, undefined);
   assert.equal(s.memberships, null);
   // 额外权限授予（仅店主）可让教师查看全部课程
-  const grant = await env.call('admin-openid', 'staff.setTeacherPermissions', { teacherId: env.teacherId, permissions: ['class.view.all'] });
+  const grant = await env.call('teacher-openid', 'staff.setTeacherPermissions', { teacherId: env.teacherId, permissions: ['class.view.all'] });
   assert.equal(grant.code, 'FORBIDDEN');
   await env.ok('owner-openid', 'staff.setTeacherPermissions', { teacherId: env.teacherId, permissions: ['class.view.all'] });
   await env.ok('teacher-openid', 'attendance.classDetail', { classId: c2.classes[0]._id });
@@ -210,7 +188,7 @@ test('6. 学员权限限制：无法访问管理功能和他人信息', async ()
   const r = await env.call('owner-openid', 'permissions.update', { role: 'student', permissions: ['student.view.all'] });
   assert.equal(r.code, 'INVALID_ARGUMENT');
   // 停用账户无法使用
-  await env.ok('admin-openid', 'student.setStatus', { studentId: env.studentId, status: 'suspended', reason: '欠费' });
+  await env.ok('owner-openid', 'student.setStatus', { studentId: env.studentId, status: 'suspended', reason: '欠费' });
   const s = await env.call('student-openid', 'schedule.week', {});
   assert.equal(s.code, 'ACCOUNT_SUSPENDED');
 });

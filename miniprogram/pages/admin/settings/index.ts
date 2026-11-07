@@ -23,7 +23,6 @@ const PERM_TEXT: Record<string, string> = {
   'credit.manage': '增减课时',
   'transaction.view': '查看课时流水',
   'teacher.manage': '管理教师',
-  'admin.manage': '管理管理员',
   'owner.manage': '管理店主',
   'audit.view': '查看操作日志',
   'settings.manage': '修改系统设置',
@@ -42,7 +41,6 @@ Page({
       monthlyDefaultMode: 'unlimited', monthlyDefaultLimit: '', passDefaultValidDays: '', passPresetsText: '', refundOnCancel: true,
     },
     roleTabs: [
-      { key: 'admin', text: '管理员' },
       { key: 'teacher', text: '教师' },
       { key: 'student', text: '学员' },
     ],

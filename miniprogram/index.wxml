@@ -1,0 +1,13 @@
+nInput" />ield">
+  <view wx:if="{{!smsMode}}" class="hint">无法使用微信快捷验证？<text class="accent" bindtap="useSms">改用短信验证码</text></view>
+  <view wx:else class="hint"><text class="accent" bindtap="useWx">返回微信手机号快捷验证</text></view>
+  <view class="hint">手机号为必填项，仅用于身份核验与课程联系，不会用于其他用途。同一手机号只能注册一个账号，如提示已注册请联系店主。若前台已用该手机号为你登记档案，验证后将自动关联。</view>
+  <view class="hint">教师无需单独注册：完成注册后，由店主在学员详情中设为老师。</view>
+
+  <view class="agree row" bindtap="toggleAgree">
+<view class="ck {{agree ? 'on' : ''}}"><image wx:if="{{agree}}" src="/assets/icons/check-white.svg" /></view>
+<text class="small grey">我已阅读并同意<text class="accent" catchtap="toPrivacy">《隐私政策》</text>与<text class="accent" catchtap="toPrivacy">《用户服务协议》</text></text>
+  </view>
+
+  <button class="btn mt" hover-class="btn-hover" disabled="{{busy}}" bindtap="submit">{{submitText}}</button>
+</view>

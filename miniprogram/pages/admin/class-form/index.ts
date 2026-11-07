@@ -28,10 +28,13 @@ Page({
     dates: [] as string[],
     form: {
       name: '',
-      startTime: '19:00',
+      startTime: '12:00',
+      endTime: '13:30',
       duration: '90',
       capacity: '',
       description: '',
+      room: '',
+      level: 0,
       date: today(),
       startDate: today(),
       endDate: addDays(today(), 56),
@@ -39,10 +42,13 @@ Page({
     },
     preview: '',
     busy: false,
-    reqId: requestId(),
+    reqId: '',
   },
 
   async onLoad(q: Record<string, string>) {
+    // 每次进入页面生成独立请求编号（data 字面量只在模块加载时求值一次，不能在其中生成）
+    const t0 = today()
+    this.setData({ reqId: requestId(), today: t0, 'form.date': t0, 'form.startDate': t0, 'form.endDate': addDays(t0, 56) })
     const s = await ensureRegistered()
     if (!s) return
     const teachers = await call<any[]>('class.teacherOptions').catch(() => [])
@@ -56,9 +62,10 @@ Page({
       this.setData({
         editId: q.id,
         teacherIndex: teachers.findIndex((t) => t._id === c.teacherId),
-        form: { ...this.data.form, name: c.name, startTime: c.startTime, duration: String(c.duration), capacity: c.capacity ? String(c.capacity) : '', description: c.description, date: c.date },
+        form: { ...this.data.form, name: c.name, startTime: c.startTime, duration: String(c.duration), capacity: c.capacity ? String(c.capacity) : '', description: c.description, room: c.room || '', level: c.level || 0, date: c.date },
       })
     }
+    this.syncEnd()
     this.updatePreview()
   },
 
@@ -68,7 +75,32 @@ Page({
   },
 
   onInput(e: WechatMiniprogram.Input) {
-    this.setData({ [`form.${e.currentTarget.dataset.k}`]: e.detail.value })
+    const k = e.currentTarget.dataset.k
+    this.setData({ [`form.${k}`]: e.detail.value })
+    if (k === 'duration') this.syncEnd()
+  },
+
+  /** 根据开始时间与时长计算结束时间 */
+  syncEnd() {
+    const f = this.data.form
+    const d = parseInt(f.duration, 10)
+    const [h, m] = f.startTime.split(':').map(Number)
+    const end = h * 60 + m + (d > 0 ? d : 0)
+    this.setData({ 'form.endTime': end >= 1440 ? '' : `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}` })
+  },
+
+  /** 修改结束时间：反算时长 */
+  onEndTime(e: WechatMiniprogram.PickerChange) {
+    const v = e.detail.value as string
+    const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+    const d = toMin(v) - toMin(this.data.form.startTime)
+    if (d < 15) { wx.showToast({ title: '结束时间需晚于开始时间15分钟以上', icon: 'none' }); return }
+    this.setData({ 'form.endTime': v, 'form.duration': String(d) })
+  },
+
+  onLevel(e: WechatMiniprogram.TouchEvent) {
+    const n = Number(e.currentTarget.dataset.n)
+    this.setData({ 'form.level': this.data.form.level === n ? 0 : n })
   },
 
   onTeacher(e: WechatMiniprogram.PickerChange) {
@@ -77,6 +109,7 @@ Page({
 
   onTime(e: WechatMiniprogram.PickerChange) {
     this.setData({ 'form.startTime': e.detail.value as string })
+    this.syncEnd()
   },
 
   onDate(e: WechatMiniprogram.PickerChange) {
@@ -108,12 +141,16 @@ Page({
   },
 
   async submit() {
+    if (this.data.busy) return
     const f = this.data.form
     const t = this.data.teachers[this.data.teacherIndex]
     if (!f.name.trim()) { wx.showToast({ title: '请输入课程名称', icon: 'none' }); return }
     if (!t) { wx.showToast({ title: '请选择授课老师', icon: 'none' }); return }
     const duration = parseInt(f.duration, 10)
     if (!(duration >= 15 && duration <= 480)) { wx.showToast({ title: '时长需在15-480分钟', icon: 'none' }); return }
+    if (!f.endTime) { wx.showToast({ title: '课程不能跨天', icon: 'none' }); return }
+    if (f.capacity && !(parseInt(f.capacity, 10) >= 1)) { wx.showToast({ title: '人数上限需大于0', icon: 'none' }); return }
+    if (!this.data.editId && this.data.mode === 'single' && !f.date) { wx.showToast({ title: '请选择上课日期', icon: 'none' }); return }
     const base: Record<string, any> = {
       name: f.name.trim(),
       teacherId: t._id,
@@ -121,6 +158,8 @@ Page({
       duration,
       capacity: f.capacity ? parseInt(f.capacity, 10) : null,
       description: f.description.trim(),
+      room: f.room.trim(),
+      level: f.level,
     }
     this.setData({ busy: true })
     let ok: any
@@ -145,17 +184,18 @@ Page({
         payload.dates = this.data.dates
       }
       ok = await callWithToast<any>('class.create', payload, '创建中')
+      if (ok && !(ok.created > 0)) {
+        wx.showModal({ title: '排课失败', content: '课程未能保存，请重试', showCancel: false })
+        ok = null
+      }
       if (ok) {
         const skipped = ok.skipped && ok.skipped.length ? `\n已跳过重复日期：${ok.skipped.join('、')}` : ''
         await new Promise((res) => wx.showModal({ title: '排课成功', content: `已创建 ${ok.created} 节课程${skipped}`, showCancel: false, complete: res }))
       }
     }
-    this.setData({ busy: false })
-    if (!ok) {
-      // 失败后生成新请求号，避免与失败请求冲突
-      this.setData({ reqId: requestId() })
-      return
-    }
+    // 无论成功失败都生成新请求号，下一次创建不会复用旧请求结果
+    this.setData({ busy: false, reqId: requestId() })
+    if (!ok) return
     wx.navigateBack()
   },
 })

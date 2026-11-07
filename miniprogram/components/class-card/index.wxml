@@ -1,5 +1,56 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
-<view class="cc {{item.status === 'cancelled' ? 'cancelled' : ''}} {{item.ended || item.status === 'completed' ? 'ended' : ''}}" bindtap="tap">
+<view wx:if="{{mode === 'student'}}" class="sc {{item.status === 'cancelled' ? 'cancelled' : ''}} {{item.phase === 'ended' ? 'ended' : ''}}" bindtap="tap">
+  <view class="sc-top">
+	<view class="t-av">
+	  <image wx:if="{{item.teacherAvatar}}" src="{{item.teacherAvatar}}" mode="aspectFill" />
+	  <text wx:else>{{f.initial(item.teacherName)}}</text>
+	</view>
+	<view class="body">
+	  <view class="row1">
+		<text class="name ellipsis">{{item.name}}</text>
+		<text class="phase {{item.phase}}">{{f.label('phase', item.phase)}}</text>
+	  </view>
+	  <view class="meta">
+		<image class="mi" src="/assets/icons/clock-muted.svg" /><text>{{item.startTime}} - {{item.endTime}}</text>
+		<block wx:if="{{item.room}}"><text class="ml">教室 {{item.room}}</text></block>
+	  </view>
+	  <view class="meta">
+		<image class="mi" src="/assets/icons/teacher-muted.svg" /><text>{{item.teacherName}}</text>
+		<view wx:if="{{item.level}}" class="stars ml"><text wx:for="{{[1,2,3,4,5]}}" wx:for-item="n" wx:key="*this" class="{{n <= item.level ? 'on' : ''}}">★</text></view>
+	  </view>
+	  <view wx:if="{{item.status === 'cancelled' && item.cancelReason}}" class="reason">取消原因：{{item.cancelReason}}</view>
+	</view>
+  </view>
+  <view wx:if="{{item.status !== 'cancelled'}}" class="sc-bottom">
+	<view class="booked">
+	  <view class="avs">
+		<view wx:for="{{item.bookedStudents}}" wx:key="id" class="av">
+		  <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
+		  <text wx:else>{{item.initial}}</text>
+		</view>
+		<view wx:if="{{item.bookedCount > item.bookedStudents.length}}" class="av more">+{{item.bookedCount - item.bookedStudents.length}}</view>
+	  </view>
+	  <text class="tiny muted">{{item.bookedCount ? '已约 ' + item.bookedCount + (item.capacity ? ' / ' + item.capacity : '') : '暂无预约'}}</text>
+	</view>
+	<view class="act-row">
+	  <block wx:if="{{item.state === 'checked_in'}}">
+		<view class="done"><image src="/assets/icons/check-active.svg" /><text>已预约</text></view>
+		<text wx:if="{{item.canCancelBooking}}" class="hint accent" catchtap="cancelBook">取消预约</text>
+	  </block>
+	  <block wx:elif="{{item.canBook}}">
+		<button class="btn small" hover-class="btn-hover" disabled="{{busy}}" catchtap="book">预约</button>
+	  </block>
+	  <block wx:elif="{{item.bookingStatus === 'booked' && item.phase !== 'ended'}}">
+		<text class="tag">已预约</text>
+		<text wx:if="{{item.canCancelBooking}}" class="hint accent" catchtap="cancelBook">取消预约</text>
+	  </block>
+	  <block wx:else>
+		<text class="hint">{{item.hint}}</text>
+	  </block>
+	</view>
+  </view>
+</view>
+<view wx:else class="cc {{item.status === 'cancelled' ? 'cancelled' : ''}} {{item.ended || item.status === 'completed' ? 'ended' : ''}}" bindtap="tap">
   <view class="time">
 	<text class="st">{{item.startTime}}</text>
 	<text class="et">{{item.endTime}}</text>
@@ -16,22 +67,31 @@
 	</view>
 	<view wx:if="{{item.status === 'cancelled' && item.cancelReason}}" class="reason">取消原因：{{item.cancelReason}}</view>
 	<view wx:if="{{mode === 'staff' && item.status !== 'cancelled'}}" class="meta stat">
-	  <text>已签到 <text class="b">{{item.checkedIn || 0}}</text>{{item.hasRoster ? ' / ' + item.expected : ''}}</text>
+	  <text>已约 <text class="b">{{item.booked || 0}}</text></text>
+	  <text class="ml2">已签到 <text class="b">{{item.checkedIn || 0}}</text></text>
 	  <text wx:if="{{item.hasRoster}}" class="ml2">未签到 <text class="b">{{item.notCheckedIn}}</text></text>
-	  <text wx:if="{{!item.hasRoster}}" class="ml2 tiny">未设置名单</text>
+	</view>
+	<view wx:if="{{mode === 'student' && item.status !== 'cancelled' && item.capacity}}" class="meta stat">
+	  <text>已约 <text class="b">{{item.bookedCount}}</text> / {{item.capacity}}</text>
+	  <text class="ml2">剩余 <text class="b">{{item.remaining}}</text></text>
 	</view>
 	<slot></slot>
   </view>
   <view wx:if="{{mode === 'student' && item.status !== 'cancelled'}}" class="act">
 	<block wx:if="{{item.state === 'checked_in'}}">
-	  <view class="done"><image src="/assets/icons/check-active.svg" /><text>已签到</text></view>
-	  <text class="tiny muted">{{f.hm(item.checkInAt)}}</text>
+	  <view class="done"><image src="/assets/icons/check-active.svg" /><text>已预约</text></view>
+	  <text wx:if="{{item.canCancelBooking}}" class="hint accent" catchtap="cancelBook">取消预约</text>
 	</block>
-	<block wx:elif="{{item.canCheckIn}}">
-	  <button class="btn small" hover-class="btn-hover" disabled="{{busy}}" catchtap="checkin">签到</button>
+	<block wx:elif="{{item.canBook}}">
+	  <button class="btn small" hover-class="btn-hover" disabled="{{busy}}" catchtap="book">预约</button>
+	</block>
+	<block wx:elif="{{item.bookingStatus === 'booked' || item.state === 'booked'}}">
+	  <text class="tag">已预约</text>
+	  <text wx:if="{{item.canCancelBooking}}" class="hint accent" catchtap="cancelBook">取消预约</text>
+	  <text wx:else class="hint">{{item.hint}}</text>
 	</block>
 	<block wx:else>
-	  <button class="btn small" disabled>签到</button>
+	  <button class="btn small" disabled>{{item.state === 'full' ? '已满' : '预约'}}</button>
 	  <text class="hint">{{item.hint}}</text>
 	</block>
   </view>

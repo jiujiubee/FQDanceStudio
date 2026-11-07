@@ -1,0 +1,14 @@
+.nm { font-size: 40rpx; margin: 0; }
+.star { color: var(--c-light-grey); }
+.star.on { color: #E6A23C; }
+.teacher { align-items: center; gap: 16rpx; padding-top: 16rpx; padding-bottom: 16rpx; }
+.t-av { width: 56rpx; height: 56rpx; flex-shrink: 0; border-radius: 50%; overflow: hidden; background: var(--c-bg-grey); display: flex; align-items: center; justify-content: center; font-size: 24rpx; color: var(--c-grey); }
+.t-av image { width: 100%; height: 100%; }
+.t-info { display: flex; align-items: baseline; gap: 12rpx; line-height: 1.3; }
+.t-nm { font-size: 28rpx; }
+.t-arrow { width: 24rpx; height: 24rpx; flex-shrink: 0; }
+.avs { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.av { width: 72rpx; height: 72rpx; border-radius: 50%; overflow: hidden; background: var(--c-bg-grey); display: flex; align-items: center; justify-content: center; font-size: 26rpx; color: var(--c-grey); }
+.av image { width: 100%; height: 100%; }
+.av.more { font-size: 22rpx; }
+.center { text-align: center; padding: 20rpx 0; }

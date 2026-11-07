@@ -1,7 +1,7 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
 <view class="container">
   <view class="av-wrap">
-	<button class="av-btn" open-type="chooseAvatar" bindchooseavatar="onAvatar">
+	<button class="av-btn" open-type="{{needPrivacy ? 'agreePrivacyAuthorization|chooseAvatar' : 'chooseAvatar'}}" bindagreeprivacyauthorization="onPrivacyAgree" bindchooseavatar="onAvatar">
 	  <view class="avatar lg">
 		<image wx:if="{{form.avatar}}" src="{{form.avatar}}" mode="aspectFill" />
 		<text wx:else>{{f.initial(form.name)}}</text>

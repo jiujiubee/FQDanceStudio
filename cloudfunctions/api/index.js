@@ -33,7 +33,7 @@ const handle = createApi(createCloudStore(cloud), { providers });
 const COLLECTIONS = [
   'users', 'teachers', 'students', 'classes', 'classSeries', 'attendance', 'attendanceRosters',
   'memberships', 'transactions', 'rolePermissions', 'auditLogs', 'systemSettings', 'staffInvites',
-    'phoneIndex', 'phoneVerifications',
+    'phoneIndex', 'phoneVerifications', 'classBookings',
 ];
 let ready = null;
 // 首次调用时自动创建集合（已存在则忽略），无需在控制台手动建表

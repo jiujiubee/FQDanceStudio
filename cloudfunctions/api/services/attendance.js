@@ -7,6 +7,7 @@ const views = require('../lib/views');
 const { P } = require('../lib/permissions');
 const core = require('../lib/attendance-core');
 const { resolveRoster } = require('../lib/roster');
+const bk = require('../lib/booking-core');
 
 function scopeWhere(ctx, where) {
   if (ctx.can(P.ATTENDANCE_VIEW_ALL) || ctx.can(P.CLASS_VIEW_ALL)) return where;
@@ -14,18 +15,21 @@ function scopeWhere(ctx, where) {
   throw E.forbidden();
 }
 
+/** 应到 = 上课名单 ∪ 有效预约；未签到 = 应到中尚未签到的学员（均以数据库记录为准） */
 async function classStats(ctx, cls) {
-  const att = await ctx.store.find('attendance', { classId: cls._id });
-  const present = att.filter((a) => a.status === 'present');
+  const att = await ctx.store.find('attendance', { classId: cls._id, status: 'present' });
+  const presentIds = new Set(att.map((a) => a.studentId));
   const roster = await resolveRoster(ctx.store, cls);
-  let expected = null;
-  let notCheckedIn = null;
-  if (roster) {
-    const presentIds = new Set(present.map((a) => a.studentId));
-    expected = roster.studentIds.length;
-    notCheckedIn = roster.studentIds.filter((id) => !presentIds.has(id)).length;
-  }
-  return { checkedIn: present.length, expected, notCheckedIn, hasRoster: !!roster };
+  const books = await ctx.store.find('classBookings', { classId: cls._id, status: { $in: bk.ACTIVE } });
+  const expectedIds = new Set([...(roster ? roster.studentIds : []), ...books.map((b) => b.studentId)]);
+  const has = !!roster || books.length > 0;
+  return {
+    checkedIn: presentIds.size,
+    booked: books.length,
+    expected: has ? expectedIds.size : null,
+    notCheckedIn: has ? [...expectedIds].filter((id) => !presentIds.has(id)).length : null,
+    hasRoster: has,
+  };
 }
 
 module.exports = {
@@ -63,8 +67,11 @@ module.exports = {
     ctx.assertClassAccess(cls);
     const att = await ctx.store.find('attendance', { classId: cls._id }, { orderBy: [['checkInAt', 'asc']] });
     const roster = await resolveRoster(ctx.store, cls);
+    const books = await ctx.store.find('classBookings', { classId: cls._id });
+    const activeBooks = books.filter((b) => bk.ACTIVE.includes(b.status));
+    const bookedIds = new Set(activeBooks.map((b) => b.studentId));
     const presentIds = new Set(att.filter((a) => a.status === 'present').map((a) => a.studentId));
-    const studentIds = [...new Set([...att.map((a) => a.studentId), ...(roster ? roster.studentIds : [])])];
+    const studentIds = [...new Set([...att.map((a) => a.studentId), ...(roster ? roster.studentIds : []), ...books.map((b) => b.studentId)])];
     const students = studentIds.length ? await ctx.store.find('students', { _id: { $in: studentIds } }) : [];
     const sMap = new Map(students.map((s) => [s._id, s]));
     const row = (sid, a) => {
@@ -76,22 +83,37 @@ module.exports = {
         status: a ? a.status : 'pending',
         source: a ? a.source : '',
         checkInAt: a ? a.checkInAt : null,
+        booked: bookedIds.has(sid),
+        checkInType: a ? (a.source === 'self' ? 'self' : 'teacher_proxy') : '',
         history: a && ctx.can(P.ATTENDANCE_MARK) ? (a.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to, reason: h.reason })) : [],
       };
     };
     const checkedIn = att.filter((a) => a.status === 'present').map((a) => row(a.studentId, a));
     const attMap = new Map(att.map((a) => [a.studentId, a]));
     let notCheckedIn = null;
-    if (roster) notCheckedIn = roster.studentIds.filter((id) => !presentIds.has(id)).map((id) => row(id, attMap.get(id)));
+    const expectedIds = [...new Set([...(roster ? roster.studentIds : []), ...bookedIds])];
+    const hasExpected = !!roster || bookedIds.size > 0;
+    if (hasExpected) notCheckedIn = expectedIds.filter((id) => !presentIds.has(id)).map((id) => row(id, attMap.get(id)));
     // 无名单时，仅列出被标记为缺勤/取消的记录，不会把全部学员视为缺勤
-    const others = att.filter((a) => a.status !== 'present' && !(roster && roster.studentIds.includes(a.studentId))).map((a) => row(a.studentId, a));
+    const others = att.filter((a) => a.status !== 'present' && !expectedIds.includes(a.studentId)).map((a) => row(a.studentId, a));
+    // 已预约未签到 / 已取消预约（取消者不进入当前上课名单）
+    const booked = activeBooks.filter((b) => !presentIds.has(b.studentId)).map((b) => row(b.studentId, attMap.get(b.studentId)));
+    const cancelled = books
+      .filter((b) => b.status === 'cancelled' && !bookedIds.has(b.studentId) && !presentIds.has(b.studentId))
+      .map((b) => ({ ...row(b.studentId, null), name: (sMap.get(b.studentId) || {}).name || b.studentName || '学员', status: 'cancelled' }));
     return {
       class: views.classView(cls),
-      hasRoster: !!roster,
+      hasRoster: hasExpected,
       checkedIn,
       notCheckedIn,
       others,
-      stats: { checkedIn: checkedIn.length, expected: roster ? roster.studentIds.length : null, notCheckedIn: notCheckedIn ? notCheckedIn.length : null },
+      booked,
+      cancelled,
+      stats: {
+        cancelled: cancelled.length,
+        checkedIn: checkedIn.length, booked: activeBooks.length,
+        expected: hasExpected ? expectedIds.length : null, notCheckedIn: notCheckedIn ? notCheckedIn.length : null,
+      },
       canMark: ctx.can(P.ATTENDANCE_MARK),
     };
   },

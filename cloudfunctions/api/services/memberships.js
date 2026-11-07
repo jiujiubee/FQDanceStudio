@@ -36,6 +36,42 @@ function readPolicy(ctx, data, type) {
   return { policy: { mode: 'unlimited' }, quota: 0 };
 }
 
+/**
+ * 已有有效次卡时再开次卡：课时累加到原卡（如剩 4 节 + 新开 5 节 = 9 节），到期日取较晚者。
+ * 以 requestId 派生的 refId 保证重复提交幂等。返回 null 表示没有可合并的次卡。
+ */
+async function topUpPass(ctx, student, doc, reqKey, reason) {
+  const done = await ctx.store.find('transactions', { refType: 'membership_topup', refId: reqKey }, { limit: 1 });
+  if (done.length) return { membershipId: done[0].membershipId, merged: true, idempotent: true };
+  const today = time.today();
+  const list = await ctx.store.find('memberships', { studentId: student._id, status: { $in: ['active', 'suspended'] } });
+  const target = list
+    .filter((m) => rules.isPass(m) && (!m.expireDate || m.expireDate >= today))
+    .sort((a, b) => (b.expireDate || '').localeCompare(a.expireDate || ''))[0];
+  if (!target) return null;
+  const credits = doc.totalCredits;
+  let result;
+  await withRetry(() => ctx.store.transaction(async (tx) => {
+    const m = await tx.get('memberships', target._id);
+    const prev = m.remainingCredits || 0;
+    const next = prev + credits;
+    const expireDate = doc.expireDate > m.expireDate ? doc.expireDate : m.expireDate;
+    await tx.update('memberships', m._id, {
+      type: rules.TYPES.CLASS_PASS, remainingCredits: next, totalCredits: (m.totalCredits || 0) + credits,
+      expireDate, name: `${(m.totalCredits || 0) + credits}次卡`, updatedAt: time.now(),
+    });
+    await rules.writeTx(tx, {
+      studentId: student._id, membershipId: m._id, type: 'purchase', amount: credits,
+      previousBalance: prev, newBalance: next, operatorId: ctx.user._id,
+      reason: reason || `续开次卡：+${credits} 次（${prev} → ${next}）`, refType: 'membership_topup', refId: reqKey,
+    });
+    result = { membershipId: m._id, merged: true, previousBalance: prev, newBalance: next, expireDate, before: { remainingCredits: prev, expireDate: m.expireDate } };
+  }));
+  await rules.refreshSummary(ctx.store, student._id);
+  await ctx.audit('membership.topup', 'membership', result.membershipId, result.before, { remainingCredits: result.newBalance, expireDate: result.expireDate }, reason);
+  return { membershipId: result.membershipId, merged: true, previousBalance: result.previousBalance, newBalance: result.newBalance };
+}
+
 function readType(val) {
   const t = rules.canonType(val);
   return v.oneOf(t, '会员类型', rules.TYPE_LIST);
@@ -79,6 +115,10 @@ module.exports = {
     }
     const existed = await ctx.store.get('memberships', _id);
     if (existed) return { membershipId: _id, idempotent: true };
+    if (type === rules.TYPES.CLASS_PASS) {
+      const merged = await topUpPass(ctx, student, doc, _id, reason);
+      if (merged) return merged;
+    }
     await ctx.store.transaction(async (tx) => {
       await tx.create('memberships', doc);
       await rules.writeTx(tx, {

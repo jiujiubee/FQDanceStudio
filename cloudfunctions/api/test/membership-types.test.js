@@ -5,7 +5,7 @@ const { setup, reqId } = require('./helpers');
 const time = require('../lib/time');
 const rules = require('../lib/membership-rules');
 
-const createQ = (env, extra) => env.ok('admin-openid', 'membership.create', {
+const createQ = (env, extra) => env.ok('owner-openid', 'membership.create', {
   studentId: env.studentId, type: 'QUARTERLY', requestId: reqId(), ...extra,
 });
 
@@ -40,9 +40,9 @@ test('Q3. 创建季卡：默认 3 个自然月，类型为 QUARTERLY 枚举并�
   assert.equal(tx.length, 1);
   assert.equal(tx[0].type, 'purchase');
   assert.equal(await env.store.count('auditLogs', { action: 'membership.create', targetId: membershipId }), 1);
-  const bad = await env.call('admin-openid', 'membership.create', { studentId: env.studentId, type: 'YEARLY', requestId: reqId() });
+  const bad = await env.call('owner-openid', 'membership.create', { studentId: env.studentId, type: 'YEARLY', requestId: reqId() });
   assert.equal(bad.code, 'INVALID_ARGUMENT');
-  const limited = await env.call('admin-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', policyMode: 'limited', requestId: reqId() });
+  const limited = await env.call('owner-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', policyMode: 'limited', requestId: reqId() });
   assert.equal(limited.code, 'INVALID_ARGUMENT');
 });
 
@@ -52,7 +52,7 @@ test('Q4. 自定义到期日期覆盖自动计算', async () => {
   const m = await env.store.get('memberships', membershipId);
   assert.equal(m.expireDate, '2024-10-15');
   assert.equal(m.autoExpireDate, '2024-09-02');
-  const early = await env.call('admin-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', startDate: '2024-06-03', expireDate: '2024-06-01', requestId: reqId() });
+  const early = await env.call('owner-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', startDate: '2024-06-03', expireDate: '2024-06-01', requestId: reqId() });
   assert.equal(early.code, 'INVALID_ARGUMENT');
 });
 
@@ -75,7 +75,7 @@ test('Q5. 不限次季卡：签到不扣次数，可多次签到', async () => {
 test('Q6. 固定次数季卡：记录总次数/已用/剩余，用完拒绝', async () => {
   const env = await setup();
   const { membershipId } = await createQ(env, { policyMode: 'quota', quota: 2 });
-  const noQuota = await env.call('admin-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', policyMode: 'quota', requestId: reqId() });
+  const noQuota = await env.call('owner-openid', 'membership.create', { studentId: env.studentId, type: 'QUARTERLY', policyMode: 'quota', requestId: reqId() });
   assert.equal(noQuota.code, 'INVALID_ARGUMENT');
   const c1 = await env.createClass();
   const c2 = await env.createClass({ startTime: '10:40' });
@@ -92,7 +92,7 @@ test('Q6. 固定次数季卡：记录总次数/已用/剩余，用完拒绝', as
   assert.equal(v.usedCredits, 2);
   assert.equal(v.remainingCredits, 0);
   // 修改额度：+3，写入流水
-  await env.ok('admin-openid', 'membership.adjustCredits', { membershipId, delta: 3, reason: '赠送' });
+  await env.ok('owner-openid', 'membership.adjustCredits', { membershipId, delta: 3, reason: '赠送' });
   const after = await env.store.get('memberships', membershipId);
   assert.equal(after.totalCredits, 5);
   assert.equal(after.remainingCredits, 3);
@@ -127,20 +127,20 @@ test('Q8. 过期季卡拒绝签到', async () => {
 test('Q9. 续费与延期：按自然月顺延、自定义到期日、修改策略，均写入流水与审计，可查看历史', async () => {
   const env = await setup();
   const { membershipId } = await createQ(env, { startDate: '2024-06-03', policyMode: 'quota', quota: 10 });
-  await env.ok('admin-openid', 'membership.renew', { membershipId, reason: '续一季' });
+  await env.ok('owner-openid', 'membership.renew', { membershipId, reason: '续一季' });
   let m = await env.store.get('memberships', membershipId);
   assert.equal(m.expireDate, '2024-12-02', '2024-09-03 起 3 个自然月');
-  await env.ok('admin-openid', 'membership.renew', { membershipId, expireDate: '2025-01-15', credits: 5, reason: '延期' });
+  await env.ok('owner-openid', 'membership.renew', { membershipId, expireDate: '2025-01-15', credits: 5, reason: '延期' });
   m = await env.store.get('memberships', membershipId);
   assert.equal(m.expireDate, '2025-01-15');
   assert.equal(m.remainingCredits, 15);
   assert.equal(m.totalCredits, 15);
-  await env.ok('admin-openid', 'membership.renew', { membershipId, expireDate: '2025-01-15', policyMode: 'unlimited', reason: '改为不限次' });
+  await env.ok('owner-openid', 'membership.renew', { membershipId, expireDate: '2025-01-15', policyMode: 'unlimited', reason: '改为不限次' });
   m = await env.store.get('memberships', membershipId);
   assert.equal(m.policy.mode, 'unlimited');
   assert.equal(m.remainingCredits, 0);
-  await env.ok('admin-openid', 'membership.setStatus', { membershipId, status: 'suspended', reason: '请假' });
-  const h = await env.ok('admin-openid', 'membership.history', { membershipId });
+  await env.ok('owner-openid', 'membership.setStatus', { membershipId, status: 'suspended', reason: '请假' });
+  const h = await env.ok('owner-openid', 'membership.history', { membershipId });
   assert.deepEqual(h.items.map((t) => t.type).sort(), ['purchase', 'renewal', 'renewal', 'renewal', 'status_change'].sort());
   assert.ok(h.items.every((t) => t.reason));
   assert.equal(await env.store.count('auditLogs', { targetId: membershipId }), 5);
@@ -174,10 +174,30 @@ test('Q10. 兼容旧数据：pass/monthly 记录可继续签到，迁移后变�
 
 test('Q11. 月卡默认 1 个自然月，可配置起止日期与固定次数', async () => {
   const env = await setup();
-  const { membershipId } = await env.ok('admin-openid', 'membership.create', {
+  const { membershipId } = await env.ok('owner-openid', 'membership.create', {
     studentId: env.studentId, type: 'MONTHLY', startDate: '2024-01-31', policyMode: 'quota', quota: 8, requestId: reqId(),
   });
   const m = await env.store.get('memberships', membershipId);
   assert.equal(m.expireDate, '2024-02-29');
   assert.equal(m.totalCredits, 8);
+});
+
+test('Q12. 已有次卡再开次卡：课时累加到原卡（剩 4 + 开 5 = 9），重复提交幂等', async () => {
+  const env = await setup();
+  const { membershipId } = await env.givePass(env.studentId, 5);
+  const c = await env.createClass();
+  await env.ok('student-openid', 'attendance.checkIn', { classId: c.classes[0]._id });
+  assert.equal((await env.store.get('memberships', membershipId)).remainingCredits, 4, '次卡签到一次扣一次');
+  const rid = reqId();
+  const r = await env.ok('owner-openid', 'membership.create', { studentId: env.studentId, type: 'CLASS_PASS', credits: 5, requestId: rid });
+  assert.equal(r.merged, true);
+  assert.equal(r.membershipId, membershipId);
+  assert.equal(r.newBalance, 9);
+  const again = await env.ok('owner-openid', 'membership.create', { studentId: env.studentId, type: 'CLASS_PASS', credits: 5, requestId: rid });
+  assert.equal(again.idempotent, true);
+  const m = await env.store.get('memberships', membershipId);
+  assert.equal(m.remainingCredits, 9);
+  assert.equal(m.totalCredits, 10);
+  assert.equal(await env.store.count('memberships', { studentId: env.studentId }), 1);
+  assert.equal(rules.canonType('class_pass'), 'CLASS_PASS');
 });

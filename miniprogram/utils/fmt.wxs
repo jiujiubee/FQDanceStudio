@@ -52,10 +52,11 @@ var TX = { purchase: '购买开卡', credit_add: '增加课时', attendance_dedu
 var MS = { active: '有效', expired: '已过期', suspended: '已冻结', none: '未开卡' }
 var MT = { CLASS_PASS: '次卡', MONTHLY: '月卡', QUARTERLY: '季卡', pass: '次卡', monthly: '月卡', none: '未开卡' }
 var PM = { credits: '按次扣减', unlimited: '不限次数', quota: '固定次数', limited: '每月限次' }
-var ROLE = { owner: '店主', admin: '管理员', teacher: '教师', student: '学员' }
+var ROLE = { owner: '店主', teacher: '教师', student: '学员' }
+var PHASE = { upcoming: '未开始', ongoing: '上课中', ended: '已结束', cancelled: '已取消' }
 
 function label(map, k) {
-  var m = { status: STATUS, tx: TX, ms: MS, mt: MT, pm: PM, role: ROLE }[map]
+  var m = { status: STATUS, tx: TX, ms: MS, mt: MT, pm: PM, role: ROLE, phase: PHASE }[map]
   return (m && m[k]) || k || ''
 }
 

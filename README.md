@@ -1,6 +1,6 @@
 # FQ Dance Studio 微信小程序
 
-舞蹈工作室内部管理小程序：学员查看周课表并签到、教师查看与更正出勤、管理员排课与管理会员课时。
+舞蹈工作室内部管理小程序：学员查看周课表并签到、教师查看与更正出勤、店主排课与管理会员课时。角色仅有 店主（OWNER）/ 教师（TEACHER）/ 学员（STUDENT）三级。
 **不包含**预约、候补、占座等功能。
 
 - 前端：原生微信小程序（WXML / WXSS / TypeScript）
@@ -17,7 +17,7 @@ miniprogram/            小程序前端
   pages/schedule        学员：周课表 + 签到
   pages/history         学员：签到记录
   pages/mine            我的：会员卡、资料、隐私
-  pages/workbench       教师/管理员：工作台
+  pages/workbench       教师/店主：工作台
   pages/teacher/class   课程签到详情、代签与更正
   pages/admin/*         排课、名单、学员、会员、流水、员工、设置、日志
 cloudfunctions/api/     云函数（路由、权限、业务服务、测试）

@@ -4,18 +4,48 @@
  * - 身份：OpenID 由云开发运行时注入（getWXContext），是唯一可信身份；无需 AppSecret。
  * - 登录：首次调用 auth.login 时为该 OpenID 创建账户（尚未注册、无任何权限）；
  *   同一微信永远只对应一个账户，角色（roles 数组）挂在该账户上。
- * - 学员注册：填写资料并同意隐私政策后获得 student 角色；或使用绑定码关联前台登记的档案。
- * - 员工：不再使用邀请码。用户注册后，由店主/管理员在「员工管理」中搜索并授予教师/管理员角色。
+ * - 注册：所有用户统一走学员注册（姓名必填，手机号/微信号/头像选填，不做短信验证），注册成功即创建关联的学员档案并获得 student 角色。
+ * - 教师：不再有独立的教师注册/邀请码。店主在「学员管理 → 学员详情」中直接「设为老师」。
+ * - 自愈：历史上通过旧版「员工注册」完成注册但没有学员档案的账户，登录时自动补建学员档案。
  * - 首位店主：仅能由部署者在云开发控制台以服务端方式执行一次初始化（见 services/system.js）。
  */
 const time = require('../lib/time');
-const ids = require('../lib/ids');
 const { E } = require('../lib/errors');
 const { v } = require('../lib/validate');
 const views = require('../lib/views');
-const { roleFields, labelOf, isStaff } = require('../lib/roles');
-const { refreshSummary } = require('../lib/membership-rules');
+const { hasLegacyAdmin, roleFields, labelOf, isStaff } = require('../lib/roles');
 const phone = require('../lib/phone');
+const { buildContext } = require('../lib/context');
+
+const EMPTY_SUMMARY = { type: 'none', label: '未开卡', remainingCredits: 0, expireDate: '', status: 'none' };
+
+/**
+ * 为已注册但缺少学员档案的账户补建档案（幂等：主键由 userId 确定性生成，并在事务中校验 users.studentId）。
+ * 返回是否新建。
+ */
+async function ensureStudentProfile(store, user) {
+  if (!user || user.studentId || !user.name || !user.privacyAgreedVersion || user.status === 'deleted') return false;
+  // 未迁移的旧 ADMIN 账号先由 system.migrate 处理角色，避免覆盖其旧角色数据
+  if (hasLegacyAdmin(user) || !Array.isArray(user.roles)) return false;
+  const studentId = `stu_${user._id}`;
+  const ts = time.now();
+  let created = false;
+  await store.transaction(async (tx) => {
+    const u = await tx.get('users', user._id);
+    if (!u || u.studentId) return;
+    const existing = await tx.get('students', studentId);
+    if (!existing) {
+      await tx.create('students', {
+        _id: studentId, userId: u._id, name: u.name, phone: '', phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '',
+        wxid: u.wxid || '', avatar: '', gender: '', birthday: '', emergencyContact: '', remark: '', groups: [], status: 'active',
+        membershipSummary: { ...EMPTY_SUMMARY }, createdAt: ts, updatedAt: ts,
+      });
+      created = true;
+    } else if (existing.status === 'deleted') return;
+    await tx.update('users', u._id, { ...addRole(u, 'student'), studentId, updatedAt: ts });
+  });
+  return created;
+}
 
 function sessionView(ctx) {
   const base = {
@@ -70,15 +100,15 @@ function addRole(user, role) {
   return roleFields([...roles, role]);
 }
 
-async function nextStudentNo() {
-  const d = time.today().replace(/-/g, '').slice(2);
-  return `S${d}${ids.shortCode(4)}`;
-}
-
 module.exports = {
   async 'auth.login'(ctx) {
     ctx.user = await ensureAccount(ctx);
     await ctx.store.update('users', ctx.user._id, { lastLoginAt: time.now() });
+    if (ctx.registered && !ctx.user.studentId && ctx.user.status === 'active') {
+      await ensureStudentProfile(ctx.store, ctx.user);
+      const fresh = await buildContext(ctx.store, ctx.openid, { allowSuspended: true });
+      return sessionView({ ...fresh, devMode: ctx.devMode, simulated: ctx.simulated });
+    }
     return sessionView(ctx);
   },
 
@@ -90,9 +120,8 @@ module.exports = {
   },
 
   /**
-   * 学员自助注册：获得 student 角色。
-   * 手机号必填且必须经过验证（微信手机号快速验证优先，短信验证码兜底）；同一号码不能重复注册。
-   * 若管理员已用同一手机号登记过尚未关联微信的档案，则验证通过后自动关联该档案（无需绑定码）。
+   * 学员自助注册：获得 student 角色。姓名必填；手机号为选填资料，不依赖短信或手机号验证。
+   * 学员档案主键为 stu_<userId>，与 OpenID 派生的账户一一对应，保证不会重复创建。
    */
   async 'auth.registerStudent'(ctx, data) {
     requireConsent(data);
@@ -101,36 +130,26 @@ module.exports = {
     const wxid = v.str(data.wxid, '微信号', { optional: true, max: 40, pattern: /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/ });
     const avatar = v.str(data.avatar, '头像', { optional: true, max: 300, pattern: /^cloud:\/\/[^/]+\/avatars\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i });
     if (avatar && !avatar.includes(`/avatars/${ctx.userId}/`)) throw E.forbidden('头像文件无效');
-    if (!data.phoneCode) phone.validate(data.phone);
+    // 手机号为选填资料，不做短信/微信验证，也不参与身份识别（身份只来自 OpenID）
+    const phoneNo = phone.validate(data.phone, { optional: true });
     await ensureAccount(ctx);
-    const pre = await ctx.store.get('phoneIndex', phone.indexId(phone.normalize(data.phone))).catch(() => null);
-    if (!data.phoneCode && pre) {
-      const owner = await ctx.store.get('students', pre.studentId);
-      if (owner && owner.userId) throw E.conflict('PHONE_EXISTS', phone.DUP_MESSAGE);
-    }
-    const verified = await phone.verify(ctx, data, ctx.providers);
     const ts = time.now();
     const userId = ctx.userId;
-    const idx = await ctx.store.get('phoneIndex', phone.indexId(verified.phone));
-    const studentId = idx ? idx.studentId : ids.randomId('stu_');
-    const phoneFields = { phone: verified.phone, phoneVerified: true, phoneVerifiedAt: ts, phoneVerifyMethod: verified.method };
-    let linked = false;
+    // 主键由账户确定性生成：重复提交/并发注册不会产生多个学员档案
+    const studentId = `stu_${userId}`;
     await ctx.store.transaction(async (tx) => {
       const u = await tx.get('users', userId);
       if (u.studentId) throw E.conflict('ALREADY_REGISTERED', '账户已注册');
-      await phone.claim(tx, verified.phone, studentId);
+      if (phoneNo) await phone.claim(tx, phoneNo, studentId);
       const existing = await tx.get('students', studentId);
+      if (existing && existing.status === 'deleted') throw E.conflict('ALREADY_REGISTERED', '账户已注销，请联系店主');
       if (existing) {
-        if (existing.userId || existing.status === 'deleted') throw E.conflict('PHONE_EXISTS', phone.DUP_MESSAGE);
-        linked = true;
-        await tx.update('students', studentId, {
-          userId, name, ...phoneFields, wxid: wxid || existing.wxid || '', avatar: avatar || existing.avatar || '', bindCode: '', updatedAt: ts,
-        });
+        await tx.update('students', studentId, { userId, name, phone: phoneNo || existing.phone || '', wxid: wxid || existing.wxid || '', avatar: avatar || existing.avatar || '', updatedAt: ts });
       } else {
         await tx.create('students', {
-          _id: studentId, userId, studentNo: await nextStudentNo(), name, ...phoneFields, wxid,
+          _id: studentId, userId, name, phone: phoneNo, phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '', wxid,
           avatar, gender: '', birthday: '', emergencyContact: '', remark: '', groups: [], status: 'active',
-          membershipSummary: { type: 'none', label: '未开卡', remainingCredits: 0, expireDate: '', status: 'none' },
+          membershipSummary: { ...EMPTY_SUMMARY },
           createdAt: ts, updatedAt: ts,
         });
       }
@@ -139,32 +158,10 @@ module.exports = {
         privacyAgreedVersion: ctx.settings.privacyPolicyVersion, privacyAgreedAt: ts, updatedAt: ts,
       });
     });
-    if (linked) await refreshSummary(ctx.store, studentId).catch(() => null);
-    return { studentId, linked, phoneVerified: true };
-  },
-
-  /** 发送短信验证码（微信手机号快速验证不可用时的兜底方式） */
-  async 'auth.sendSmsCode'(ctx, data) {
-    await ensureAccount(ctx);
-    return phone.sendSmsCode(ctx, data.phone, ctx.providers);
-  },
-
-  /**
-   * 仅完善账户资料（不创建学员档案）。用于将要被授予教师/管理员角色的员工：
-   * 注册后出现在「员工管理 → 搜索用户」中，由店主/管理员授权。
-   */
-  async 'auth.setupAccount'(ctx, data) {
-    requireConsent(data);
-    const name = v.str(data.name, '姓名', { max: 30 });
-    const wxid = v.str(data.wxid, '微信号', { optional: true, max: 40, pattern: /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/ });
-    await ensureAccount(ctx);
-    const ts = time.now();
-    await ctx.store.update('users', ctx.userId, {
-      name, wxid, privacyAgreedVersion: ctx.settings.privacyPolicyVersion, privacyAgreedAt: ts, updatedAt: ts,
-    });
-    return { userId: ctx.userId };
+    return { studentId, linked: false };
   },
 };
 
-module.exports.sessionView = sessionView;
-module.exports.ensureAccount = ensureAccount;
+  module.exports.sessionView = sessionView;
+  module.exports.ensureAccount = ensureAccount;
+  module.exports.ensureStudentProfile = ensureStudentProfile;

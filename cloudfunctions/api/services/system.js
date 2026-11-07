@@ -3,10 +3,10 @@
 const time = require('../lib/time');
 const { E } = require('../lib/errors');
 const { v } = require('../lib/validate');
-const { P, ALL, DEFAULT_MATRIX, FORBIDDEN_FOR_ROLE } = require('../lib/permissions');
+const { P, ALL, DEFAULT_MATRIX, FORBIDDEN_FOR_ROLE, CONFIGURABLE_ROLES } = require('../lib/permissions');
 const rules = require('../lib/membership-rules');
 const phoneLib = require('../lib/phone');
-const { rolesOf, roleFields } = require('../lib/roles');
+const { rolesOf, roleFields, hasLegacyAdmin } = require('../lib/roles');
 const { escapeRegex } = require('../lib/validate');
 
 const BOOTSTRAP_LOCK = 'bootstrap-lock';
@@ -59,7 +59,7 @@ module.exports = {
   async 'permissions.get'(ctx) {
     ctx.require(P.PERMISSION_MANAGE);
     const out = {};
-    for (const role of ['admin', 'teacher', 'student']) {
+    for (const role of CONFIGURABLE_ROLES) {
       const doc = await ctx.store.get('rolePermissions', role);
       out[role] = { permissions: doc ? doc.permissions : DEFAULT_MATRIX[role], forbidden: FORBIDDEN_FOR_ROLE[role], customized: !!doc };
     }
@@ -68,7 +68,7 @@ module.exports = {
 
   async 'permissions.update'(ctx, data) {
     ctx.require(P.PERMISSION_MANAGE);
-    const role = v.oneOf(data.role, '角色', ['admin', 'teacher', 'student']);
+    const role = v.oneOf(data.role, '角色', CONFIGURABLE_ROLES);
     if (data.reset) {
       await ctx.store.remove('rolePermissions', role);
       await ctx.audit('permissions.reset', 'rolePermissions', role, null, null, '');
@@ -148,10 +148,40 @@ module.exports = {
     if (!ctx.internal) throw E.forbidden();
     const users = await ctx.store.find('users', {});
     let migrated = 0;
+    // v4：移除 admin 角色。管理权限已全部归属店主；admin 账号本身与数据保留。
+    //  - 已是店主的 admin：直接移除 admin（店主已拥有全部权限，无权限损失）
+    //  - 其他 admin：移除 admin、保留其余角色，记入迁移清单（legacyAdminPending），不自动授予店主
+    const adminMigration = { mergedIntoOwner: [], pending: [] };
     for (const u of users) {
-      if (Array.isArray(u.roles)) continue;
-      await ctx.store.update('users', u._id, { ...roleFields(rolesOf(u)), wxid: u.wxid || '', updatedAt: time.now() });
+      const legacyAdmin = hasLegacyAdmin(u);
+      if (Array.isArray(u.roles) && !legacyAdmin) continue;
+      const patch = { ...roleFields(rolesOf(u)), wxid: u.wxid || '', updatedAt: time.now() };
+      if (legacyAdmin) {
+        const prev = Array.isArray(u.roles) ? u.roles : [u.role];
+        patch.legacyRoles = [...new Set([...(u.legacyRoles || []), ...prev])];
+        patch.legacyAdminMigratedAt = time.now();
+        const entry = { userId: u._id, name: u.name || '', wxid: u.wxid || '', rolesBefore: prev, rolesAfter: patch.roles };
+        if (patch.roles.includes('owner')) {
+          patch.legacyAdminPending = false;
+          adminMigration.mergedIntoOwner.push(entry);
+        } else {
+          patch.legacyAdminPending = true;
+          adminMigration.pending.push(entry);
+        }
+      }
+      await ctx.store.update('users', u._id, patch);
       migrated += 1;
+    }
+    const adminMatrix = await ctx.store.get('rolePermissions', 'admin').catch(() => null);
+    if (adminMatrix) {
+      await ctx.store.set('systemSettings', 'legacy-admin-permissions', { permissions: adminMatrix.permissions || [], archivedAt: time.now() });
+      await ctx.store.remove('rolePermissions', 'admin');
+    }
+    const teachers = await ctx.store.find('teachers', {});
+    for (const t of teachers) {
+      const extra = t.extraPermissions || [];
+      const clean = extra.filter((p) => ALL.includes(p) && !FORBIDDEN_FOR_ROLE.teacher.includes(p));
+      if (clean.length !== extra.length) await ctx.store.update('teachers', t._id, { extraPermissions: clean, updatedAt: time.now() });
     }
     const invites = await ctx.store.find('staffInvites', { status: 'active' }).catch(() => []);
     for (const i of invites) await ctx.store.update('staffInvites', i._id, { status: 'revoked' });
@@ -178,9 +208,9 @@ module.exports = {
     }
     await ctx.store.create('auditLogs', {
       actorId: 'system', actorRole: 'system', action: 'system.migrate', targetType: 'system', targetId: 'roles-v2',
-      before: null, after: { users: migrated, invitesRevoked: invites.length, memberships: legacy.length, phoneConflicts }, reason: '', createdAt: time.now(),
+      before: null, after: { users: migrated, invitesRevoked: invites.length, memberships: legacy.length, phoneConflicts, adminMigration }, reason: '', createdAt: time.now(),
     });
-    return { migratedUsers: migrated, invitesRevoked: invites.length, migratedMemberships: legacy.length, phoneConflicts };
+    return { migratedUsers: migrated, invitesRevoked: invites.length, migratedMemberships: legacy.length, phoneConflicts, adminMigration };
   },
 
   /** 定时任务：标记过期会员卡并写入「过期」流水（剩余课时清零记账） */

@@ -1,3 +1,5 @@
 .av-wrap { display: flex; flex-direction: column; align-items: center; padding: 24rpx 0 40rpx; }
 .av-btn { background: none; padding: 0; margin: 0 0 12rpx; line-height: 1; border-radius: 50%; }
 .av-btn::after { border: none; }
+.av-btn { width: auto !important; }
+.av-btn .avatar { border: 4rpx solid var(--c-border); box-shadow: 0 0 0 4rpx var(--c-surface), 0 0 0 6rpx var(--c-line); }

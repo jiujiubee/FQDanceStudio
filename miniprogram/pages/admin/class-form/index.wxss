@@ -1,1 +1,4 @@
 .container { padding-bottom: 240rpx; }
+.stars { display: flex; gap: 12rpx; font-size: 36rpx; }
+.star { color: var(--c-light-grey); }
+.star.on { color: #E6A23C; }

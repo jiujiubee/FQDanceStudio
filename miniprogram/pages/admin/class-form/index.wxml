@@ -19,12 +19,24 @@
 	  <picker class="control" mode="time" value="{{form.startTime}}" bindchange="onTime"><view>{{form.startTime}}</view></picker>
 	</view>
 	<view class="field">
+	  <text class="label">结束时间</text>
+	  <picker class="control" mode="time" value="{{form.endTime}}" start="{{form.startTime}}" bindchange="onEndTime"><view class="{{form.endTime ? '' : 'placeholder'}}">{{form.endTime || '跨天，请调整'}}</view></picker>
+	</view>
+	<view class="field">
 	  <text class="label">时长（分钟）</text>
 	  <input class="control" type="number" value="{{form.duration}}" maxlength="3" data-k="duration" bindinput="onInput" />
 	</view>
 	<view class="field">
 	  <text class="label">人数上限</text>
 	  <input class="control" type="number" value="{{form.capacity}}" placeholder="选填，仅作展示" placeholder-class="placeholder" maxlength="3" data-k="capacity" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">教室</text>
+	  <input class="control" value="{{form.room}}" placeholder="选填，如：A教室" placeholder-class="placeholder" maxlength="20" data-k="room" bindinput="onInput" />
+	</view>
+	<view class="field">
+	  <text class="label">难度等级</text>
+	  <view class="control stars"><text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{item <= form.level ? 'on' : ''}}" data-n="{{item}}" bindtap="onLevel">★</text></view>
 	</view>
   </view>
 

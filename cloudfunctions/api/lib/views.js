@@ -4,9 +4,8 @@
 function studentForSelf(s) {
   if (!s) return null;
   return {
-    _id: s._id, studentNo: s.studentNo, name: s.name, avatar: s.avatar || '', phone: s.phone || '',
-        phoneVerified: !!s.phoneVerified, phoneVerifiedAt: s.phoneVerifiedAt || null, phoneVerifyMethod: s.phoneVerifyMethod || '',
-    wxid: s.wxid || '', gender: s.gender || '', birthday: s.birthday || '',
+    _id: s._id, name: s.name, avatar: s.avatar || '', phone: s.phone || '',
+    phoneVerified: !!s.phoneVerified,    wxid: s.wxid || '', gender: s.gender || '', birthday: s.birthday || '',
     emergencyContact: s.emergencyContact || '', status: s.status, membershipSummary: s.membershipSummary || null,
   };
 }
@@ -30,15 +29,16 @@ function classView(c) {
   return {
     _id: c._id, seriesId: c.seriesId, name: c.name, teacherId: c.teacherId, teacherName: c.teacherName,
     date: c.date, startTime: c.startTime, endTime: c.endTime, duration: c.duration,
-    startAt: c.startAt, endAt: c.endAt, capacity: c.capacity || null, description: c.description || '',
+    startAt: c.startAt, endAt: c.endAt, capacity: c.capacity || null, bookedCount: c.bookedCount || 0, description: c.description || '',
+    room: c.room || '', level: c.level || 0,
     status: c.status, cancelReason: c.cancelReason || '',
   };
 }
 
-const LEGACY_TYPE = { pass: 'CLASS_PASS', monthly: 'MONTHLY' };
+const { canonType } = require('./membership-rules');
 
 function membershipView(m) {
-  const type = LEGACY_TYPE[m.type] || m.type;
+  const type = canonType(m.type);
   const mode = type === 'CLASS_PASS' ? 'credits' : (m.policy && m.policy.mode) || 'unlimited';
   return {
     _id: m._id, studentId: m.studentId, type, name: m.name, policyMode: mode, autoExpireDate: m.autoExpireDate || '',

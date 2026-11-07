@@ -1,7 +1,7 @@
 import { call, callWithToast, toastError } from '../../../utils/api'
-import { ensureRegistered, login } from '../../../utils/session'
+import { can, ensureRegistered, login } from '../../../utils/session'
 
-const ROLE_TEXT: Record<string, string> = { teacher: '教师', admin: '管理员', owner: '店主' }
+const ROLE_TEXT: Record<string, string> = { teacher: '教师', owner: '店主' }
 
 Page({
   data: {
@@ -9,6 +9,7 @@ Page({
     results: [] as any[],
     searched: false,
     staff: [] as any[],
+    legacyAdmins: [] as any[],
     modal: { show: false, title: '', content: '', userId: '', role: '', grant: true },
   },
 
@@ -26,6 +27,7 @@ Page({
   async load() {
     try {
       this.setData({ staff: await call<any[]>('staff.list') })
+      if (can('owner.manage')) this.setData({ legacyAdmins: await call<any[]>('staff.legacyAdmins').catch(() => []) })
     } catch (e) {
       toastError(e)
     }
@@ -78,5 +80,18 @@ Page({
     await login(true).catch(() => null)
     this.load()
     if (this.data.searched) this.search()
+  },
+
+  resolveLegacy(e: WechatMiniprogram.TouchEvent) {
+    const u = this.data.legacyAdmins[e.currentTarget.dataset.i]
+    wx.showModal({
+      title: '标记已处理',
+      content: `${u.name || u.userId} 原为管理员，系统未自动授予任何角色。如需授权，请先搜索该用户并授予教师或店主。确认从迁移清单中移除？`,
+      success: async (res) => {
+        if (!res.confirm) return
+        const r = await callWithToast('staff.resolveLegacyAdmin', { userId: u.userId }, '处理中')
+        if (r) this.load()
+      },
+    })
   },
 })

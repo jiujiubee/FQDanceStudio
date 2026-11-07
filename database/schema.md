@@ -11,7 +11,10 @@
 |---|---|---|
 | _id | string | `u_` + sha256(openid) 前 24 位（确定性，防止并发重复建号） |
 | openid | string | 微信 OpenID（唯一索引） |
-| roles | string[] | 角色数组，可同时拥有多个：`owner` / `admin` / `teacher` / `student`；权限为各角色权限并集 |
+| roles | string[] | 角色数组，可同时拥有多个：`owner` / `teacher` / `student`；权限为各角色权限并集。旧版 `admin` 已废弃，后端不再接受且不产生任何权限 |
+| legacyRoles | string[]? | 迁移前的原始角色（如含 `admin`），仅用于追溯 |
+| legacyAdminPending | boolean? | 旧 admin 账号待店主确认归属（迁移清单）；未自动授予任何角色 |
+| legacyAdminMigratedAt | number? | admin 角色迁移时间 |
 | role | string | 兼容字段：`roles` 中级别最高的角色（无角色时为空） |
 | wxid | string? | 微信号（选填，用于员工搜索授权） |
 | devSimulated | boolean? | 仅开发环境测试账户（OpenID 以 `devsim:` 开头） |
@@ -24,12 +27,14 @@
 | createdAt / updatedAt / lastLoginAt | number | |
 
 ## teachers — 教师档案
-`_id ("tch_" + userId，确定性：每个用户最多一份教师档案), userId, name, avatar, bio, status(active/revoked), extraPermissions: string[], createdAt, updatedAt`
+`_id ("tch_" + userId，确定性：每个用户最多一份教师档案), userId, name, avatar, bio, intro(简短介绍), styles: string[](擅长舞种), experience(教学经历), photos: string[](个人照片 fileID), sort(导师团队排序，小在前，默认 100), status(active/revoked), extraPermissions: string[], createdAt, updatedAt`
+
+店主在学员详情中「设为老师」时自动创建，头像继承学员头像；仅 `status=active` 的教师出现在学生首页「导师团队」。
 
 撤销教师角色仅将 status 置为 `revoked`，历史课程/签到记录保留；重新授予时复用同一档案。
 
 ## students — 学员档案
-`_id, userId?, studentNo, name, avatar, phone, wxid, gender, birthday, emergencyContact, remark, groups: string[], status(active/suspended/deleted), bindCode?, membershipSummary{type,label,remainingCredits,expireDate,status}, createdAt, updatedAt`
+`_id, userId?, name,
 
 `wxid` 为学员自愿填写的微信号，与 OpenID 无关。
 
@@ -45,7 +50,16 @@
 
 ## attendanceRosters — 上课名单（可选）
 `_id ("class_" + classId 或 "series_" + seriesId), classId?, seriesId?, studentIds[], groups[], updatedBy, updatedAt`
-课程级名单优先于批次名单。未配置名单时，"未签到" 列表不计算。
+课程级名单优先于批次名单。未配置名单时，已预约学员即为应到名单；二者均无时，"未签到" 列表不计算。
+
+## classBookings — 课程预约
+`_id ("bk_" + classId + "_" + studentId，确定性主键，杀绝重复预约), bookingId, classId, studentId, userId, className, teacherId, teacherName, classDate, startTime, endTime, classStartAt, studentName, status(booked/cancelled/checked_in/completed), source(self/teacher), operatorId, bookedAt, cancelledAt?, cancelledBy?, cancelReason?, classCancelled?, checkedInAt?, history[{at,operatorId,from,to,source?,reason?}], createdAt, updatedAt`
+
+- 预约与取消预约**不扣课时**；课时只在签到时扣除（与 attendance 写入、transactions 流水在同一事务内）。
+- 名额：`classes.bookedCount` 与预约记录在同一事务内更新，并发下不超过 `capacity`（无 capacity 即不限人数）。
+- 学员本人签到必须先预约；教师代签未预约学员时自动补建 `source=teacher` 预约（不受名额限制）。
+- 签到更正为缺勤：退还课时，预约恢复为 booked。课程取消：已签到按策略退课时，预约全部置为 cancelled 并标记 `classCancelled`。
+- 预约记录永不删除；取消后可重新预约（复用同一主键并追加 history）。开课前 `booking.cancelBeforeMinutes` 分钟内不可取消，课程开始后不可预约。已签到且课程已结束对外展示为 completed。
 
 ## memberships — 会员卡
 `_id, studentId, type(pass/monthly), name, totalCredits, usedCredits, remainingCredits, purchaseDate, startDate, expireDate, status(active/expired/suspended), policy{mode(unlimited/limited), monthlyLimit}, usage{"YYYY-MM": n}, priceCents?(人民币分), createdBy, createdAt, updatedAt`
@@ -60,7 +74,7 @@
 `_id, actorId, actorRole, action, targetType, targetId, before, after, reason, createdAt`
 
 ## systemSettings — 系统设置
-`_id = "global"`，字段见 `cloudfunctions/api/lib/settings-defaults.js`。
+`_id = "global"`，字段见 `cloudfunctions/api/lib/settings-defaults.js`。其中 `studio{posters[], intro, features[], about, address, phone}` 为学生首页资料（店主维护）；`booking{cancelBeforeMinutes}` 为预约规则。
 `_id = "bootstrap-lock"`：店主初始化永久锁 `{ ownerUserId, createdAt }`，存在即禁止再次初始化。
 
 ## staffInvites — 已废弃

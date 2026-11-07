@@ -11,6 +11,7 @@ Page({
     selGroups: {} as Record<string, boolean>,
     selected: {} as Record<string, any>,
     selectedList: [] as any[],
+    groupMembers: [] as any[],
     results: [] as any[],
     busy: false,
   },
@@ -30,6 +31,7 @@ Page({
         groups,
         selGroups,
       })
+      this.loadGroupMembers()
       const ids: string[] = r.rosterConfig.studentIds
       if (ids.length) {
         // 逐个加载名单学员详情
@@ -55,6 +57,21 @@ Page({
   toggleGroup(e: WechatMiniprogram.TouchEvent) {
     const g = e.currentTarget.dataset.g as string
     this.setData({ [`selGroups.${g}`]: !this.data.selGroups[g] })
+    this.loadGroupMembers()
+  },
+
+  async loadGroupMembers() {
+    const groups = Object.keys(this.data.selGroups).filter((g) => this.data.selGroups[g])
+    if (!groups.length) {
+      this.setData({ groupMembers: [] })
+      return
+    }
+    try {
+      const r = await call<any>('roster.groupMembers', { groups })
+      this.setData({ groupMembers: r.items })
+    } catch (err) {
+      toastError(err)
+    }
   },
 
   async onSearch(e: WechatMiniprogram.CustomEvent) {
@@ -80,7 +97,7 @@ Page({
   },
 
   clearAll() {
-    this.setData({ selected: {}, selGroups: {} })
+    this.setData({ selected: {}, selGroups: {}, groupMembers: [] })
     this.syncList()
   },
 
@@ -94,7 +111,7 @@ Page({
     )
     this.setData({ busy: false })
     if (!r) return
-    wx.showToast({ title: '已保存', icon: 'success' })
+    wx.showToast({ title: `已保存 ${r.count} 人`, icon: 'success' })
     setTimeout(() => wx.navigateBack(), 600)
   },
 })

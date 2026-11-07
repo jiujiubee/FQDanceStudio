@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/home/index",
     "pages/schedule/index",
     "pages/history/index",
     "pages/mine/index",
@@ -9,6 +10,8 @@
     "pages/dev/index",
     "pages/profile/index",
     "pages/teacher/class/index",
+    "pages/teacher-detail/index",
+    "pages/class-detail/index",
     "pages/admin/classes/index",
     "pages/admin/class-form/index",
     "pages/admin/roster/index",
@@ -18,6 +21,7 @@
     "pages/admin/staff/index",
     "pages/admin/ledger/index",
     "pages/admin/settings/index",
+    "pages/admin/studio/index",
     "pages/admin/audit/index"
   ],
   "window": {
@@ -27,6 +31,7 @@
     "backgroundColor": "#F5F5F5",
     "backgroundTextStyle": "dark"
   },
+  "requiredPrivateInfos": ["chooseLocation"],
   "tabBar": {
     "custom": true,
     "color": "#111111",
@@ -34,8 +39,9 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
       { "pagePath": "pages/schedule/index", "text": "课程" },
-      { "pagePath": "pages/history/index", "text": "签到记录" },
+      { "pagePath": "pages/history/index", "text": "上课记录" },
       { "pagePath": "pages/workbench/index", "text": "工作台" },
       { "pagePath": "pages/mine/index", "text": "我的" }
     ]

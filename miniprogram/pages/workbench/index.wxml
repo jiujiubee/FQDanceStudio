@@ -26,8 +26,8 @@
   <view class="section-title">
 	<text>{{date === today ? '今日课程' : f.dateCN(date)}}</text>
 	<view wx:if="{{canAll}}" class="segment sm">
-	  <view class="seg {{scope === 'all' ? 'on' : ''}}" data-s="all" bindtap="setScope">全部</view>
-	  <view class="seg {{scope === 'mine' ? 'on' : ''}}" data-s="mine" bindtap="setScope">我的</view>
+	  <view class="seg {{scope === 'mine' ? 'on' : ''}}" data-s="mine" bindtap="setScope">我的课程</view>
+	  <view class="seg {{scope === 'all' ? 'on' : ''}}" data-s="all" bindtap="setScope">所有老师</view>
 	</view>
   </view>
 

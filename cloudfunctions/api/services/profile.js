@@ -39,20 +39,21 @@ module.exports = {
       const patch = { updatedAt: ts };
       if (name !== undefined) patch.name = name;
       if (avatar !== undefined) patch.avatar = avatar;
-      if (data.wxid !== undefined) patch.wxid
+      if (data.wxid !== undefined) patch.wxid = v.str(data.wxid, '微信号', { optional: true, max: 40, pattern: /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/ });
       if (data.gender !== undefined) patch.gender = v.oneOf(data.gender, '性别', ['', 'male', 'female']);
       if (data.birthday !== undefined) patch.birthday = v.date(data.birthday, '生日', { optional: true });
       if (data.emergencyContact !== undefined) patch.emergencyContact = v.str(data.emergencyContact, '紧急联系人', { optional: true, max: 60 });
       await ctx.store.update('students', ctx.student._id, patch);
-      if (data.phone !== undefined || data.phoneCode) {
+      // 手机号为选填资料：可留空，不做短信验证
+      if (data.phone !== undefined) {
         const sid = ctx.student._id;
-        const old = ctx.student.phone;
-        if (data.phoneCode || phoneLib.normalize(data.phone) !== old) {
-          const verified = await phoneLib.verify(ctx, data, ctx.providers);
+        const old = ctx.student.phone || '';
+        const next = phoneLib.validate(data.phone, { optional: true });
+        if (next !== old) {
           await ctx.store.transaction(async (tx) => {
-            await phoneLib.claim(tx, verified.phone, sid);
-            if (old !== verified.phone) await phoneLib.release(tx, old, sid);
-            await tx.update('students', sid, { phone: verified.phone, phoneVerified: true, phoneVerifiedAt: ts, phoneVerifyMethod: verified.method });
+            if (next) await phoneLib.claim(tx, next, sid);
+            await phoneLib.release(tx, old, sid);
+            await tx.update('students', sid, { phone: next, phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '' });
           });
         }
       }

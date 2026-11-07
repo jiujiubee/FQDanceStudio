@@ -10,9 +10,11 @@ Page({
     checkedIn: [] as any[],
     notCheckedIn: [] as any[],
     others: [] as any[],
-    stats: { checkedIn: 0, expected: null as number | null, notCheckedIn: null as number | null },
+    stats: { booked: 0, checkedIn: 0, expected: null as number | null, notCheckedIn: null as number | null },
     canMark: false,
     canManage: false,
+    canRoster: false,
+    cancelled: [] as any[],
     modal: { show: false, title: '', content: '', confirmText: '', studentId: '', status: '' },
     picker: false,
     candidates: [] as any[],
@@ -22,11 +24,24 @@ Page({
     this.setData({ id: q.id })
   },
 
+  _timer: 0 as any,
+
   async onShow() {
     const s = await ensureRegistered()
     if (!s) return
-    this.setData({ canManage: can('class.manage') })
+    this.setData({ canManage: can('class.manage'), canRoster: can('roster.manage') })
     this.load()
+    // 定时刷新，及时反映学员预约/取消/自助签到
+    clearInterval(this._timer)
+    this._timer = setInterval(() => this.load(), 30000)
+  },
+
+  onHide() {
+    clearInterval(this._timer)
+  },
+
+  onUnload() {
+    clearInterval(this._timer)
   },
 
   async onPullDownRefresh() {
@@ -44,6 +59,7 @@ Page({
         checkedIn: r.checkedIn,
         notCheckedIn: r.notCheckedIn || [],
         others: r.others,
+        cancelled: r.cancelled || [],
         stats: r.stats,
         canMark: r.canMark,
       })

@@ -54,7 +54,6 @@ export const TX_TYPE: Record<string, string> = {
 
 export const ROLE_LABEL: Record<string, string> = {
   owner: '店主',
-  admin: '管理员',
   teacher: '教师',
   student: '学员',
 }

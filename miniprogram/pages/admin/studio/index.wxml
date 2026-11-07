@@ -1,0 +1,77 @@
+<view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:elif="{{editing}}">
+	<view class="section-title">编辑导师资料</view>
+	<view class="row mb" bindtap="changeAvatar">
+	  <image class="t-avatar" src="{{editing.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+	  <text class="small accent">更换头像</text>
+	</view>
+	<view class="form">
+	  <view class="field"><text class="label">姓名</text><input class="control" value="{{editing.name}}" maxlength="30" data-k="name" bindinput="onTInput" /></view>
+	  <view class="field"><text class="label">一句话介绍</text><input class="control" value="{{editing.intro}}" maxlength="60" data-k="intro" bindinput="onTInput" /></view>
+	  <view class="field"><text class="label">擅长舞种</text><input class="control" value="{{editing.styles}}" placeholder="用顿号分隔，如 爵士、Hiphop" placeholder-class="placeholder" data-k="styles" bindinput="onTInput" /></view>
+	  <view class="field"><text class="label">排序</text><input class="control" type="number" value="{{editing.sort}}" maxlength="3" data-k="sort" bindinput="onTInput" /></view>
+	</view>
+	<view class="small grey mt">个人简介</view>
+	<textarea class="textarea" value="{{editing.bio}}" maxlength="500" data-k="bio" bindinput="onTInput" />
+	<view class="small grey mt">教学经历</view>
+	<textarea class="textarea" value="{{editing.experience}}" maxlength="1000" data-k="experience" bindinput="onTInput" />
+	<view class="small grey mt">照片（最多9张）</view>
+	<view class="imgs">
+	  <view wx:for="{{editing.photos}}" wx:key="*this" class="img"><image src="{{item}}" mode="aspectFill" /><text class="del" data-i="{{index}}" bindtap="removePhoto">×</text></view>
+	  <view wx:if="{{editing.photos.length < 9}}" class="img add" bindtap="addPhoto">+</view>
+	</view>
+	<view class="btn-group mt">
+	  <button class="btn ghost" bindtap="cancelEdit">取消</button>
+	  <button class="btn" hover-class="btn-hover" disabled="{{busy}}" bindtap="saveTeacher">保存</button>
+	</view>
+  </block>
+  <block wx:else>
+	<block wx:if="{{canStudio}}">
+	  <view class="section-title">工作室资料</view>
+	  <view class="form">
+		<view class="field"><text class="label">名称</text><input class="control" value="{{s.studioName}}" maxlength="40" data-k="studioName" bindinput="onInput" /></view>
+		<view class="field"><text class="label">简介</text><input class="control" value="{{s.intro}}" maxlength="500" data-k="intro" bindinput="onInput" /></view>
+		<view class="field"><text class="label">特色课程</text><input class="control" value="{{s.features}}" placeholder="用顿号分隔" placeholder-class="placeholder" data-k="features" bindinput="onInput" /></view>
+		<view class="field"><text class="label">联系电话</text><input class="control" value="{{s.phone}}" maxlength="20" data-k="phone" bindinput="onInput" /></view>
+		<view class="field"><text class="label">营业时间</text><input class="control" value="{{s.businessHours}}" placeholder="如：周一至周日 10:00-22:00" placeholder-class="placeholder" maxlength="60" data-k="businessHours" bindinput="onInput" /></view>
+		<view class="field"><text class="label">地址</text><input class="control" value="{{s.address}}" maxlength="120" data-k="address" bindinput="onInput" /></view>
+		<view class="field" bindtap="chooseLocation"><text class="label">地图位置</text><view class="control {{s.latitude !== null ? '' : 'placeholder'}}">{{s.latitude !== null ? '已定位（点击重新选择）' : '点击在地图上选择'}}</view></view>
+	  </view>
+	  <view class="small grey mt">舞蹈室头像 / Logo</view>
+	  <view class="row mb" bindtap="changeLogo">
+		<image class="t-avatar" src="{{s.logo || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		<text class="small accent">更换 Logo（保存后生效）</text>
+	  </view>
+	  <view class="small grey mt">相关介绍</view>
+	  <textarea class="textarea" value="{{s.about}}" maxlength="1000" data-k="about" bindinput="onInput" />
+	  <view class="small grey mt">首页海报（最多6张；点击预览，← → 调整顺序，“换”更换图片）</view>
+	  <view class="imgs">
+		<view wx:for="{{s.posters}}" wx:key="*this" class="img">
+		  <image src="{{item}}" mode="aspectFill" data-i="{{index}}" bindtap="previewPoster" />
+		  <text class="del" data-i="{{index}}" bindtap="removePoster">×</text>
+		  <view class="row between tiny">
+			<text data-i="{{index}}" data-d="-1" bindtap="movePoster">←</text>
+			<text class="accent" data-i="{{index}}" bindtap="replacePoster">换</text>
+			<text data-i="{{index}}" data-d="1" bindtap="movePoster">→</text>
+		  </view>
+		</view>
+		<view wx:if="{{s.posters.length < 6}}" class="img add" bindtap="addPoster">+</view>
+	  </view>
+	  <button class="btn mt" hover-class="btn-hover" disabled="{{busy}}" bindtap="saveStudio">保存工作室资料</button>
+	  <button class="btn ghost mt" bindtap="previewHome">预览学生端首页</button>
+	</block>
+
+	<block wx:if="{{canTeacher}}">
+	  <view class="section-title mt">导师资料</view>
+	  <view class="card">
+		<view wx:for="{{teachers}}" wx:key="_id" class="cell" data-id="{{item._id}}" bindtap="editTeacher">
+		  <image class="t-avatar sm" src="{{item.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		  <view class="grow"><view class="small">{{item.name}}</view><view class="tiny muted ellipsis">{{item.intro || '未填写介绍'}}</view></view>
+		  <image class="arrow" src="/assets/icons/right-muted.svg" />
+		</view>
+		<view wx:if="{{!teachers.length}}" class="load-more">暂无导师；在学员详情中「设为老师」后出现</view>
+	  </view>
+	</block>
+  </block>
+</view>

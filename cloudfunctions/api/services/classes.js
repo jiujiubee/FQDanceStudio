@@ -65,6 +65,8 @@ module.exports = {
     const duration = v.int(data.duration, '课程时长', { min: 15, max: 480 });
     const capacity = v.int(data.capacity, '人数上限', { optional: true, default: null, min: 1, max: 999 });
     const description = v.str(data.description, '课程简介', { optional: true, max: 500 });
+    const room = v.str(data.room, '教室', { optional: true, max: 20 });
+    const level = v.int(data.level, '难度', { optional: true, default: 0, min: 0, max: 5 });
     const requestId = v.str(data.requestId, '请求编号', { max: 64, pattern: /^[A-Za-z0-9_-]{8,64}$/ });
     const dates = generateDates(mode, data);
     if (dates.length > MAX_SESSIONS) throw E.invalid(`单次最多生成${MAX_SESSIONS}节课`);
@@ -73,7 +75,12 @@ module.exports = {
 
     const seriesId = ids.seriesId(requestId);
     const existingSeries = await ctx.store.get('classSeries', seriesId);
-    if (existingSeries) return { seriesId, created: existingSeries.classIds.length, skipped: [], idempotent: true };
+    if (existingSeries) {
+      // 同一请求重复提交：仅当课程确实已写入数据库时才返回成功
+      const saved = await ctx.store.find('classes', { seriesId });
+      if (!saved.length) throw E.conflict('DUPLICATE_REQUEST', '请求编号已被使用，请重新提交');
+      return { seriesId, created: saved.length, classIds: saved.map((c) => c._id), skipped: [], idempotent: true };
+    }
 
     const ts = time.now();
     // 重复课程检测：同教师、同日期、同开始时间、未取消
@@ -94,7 +101,7 @@ module.exports = {
         await ctx.store.create('classes', {
           _id: id, seriesId, name, teacherId: teacher._id, teacherName: teacher.name,
           date, startTime, endTime: t.endTime, duration, startAt: t.startAt, endAt: t.endAt,
-          capacity, description, status: 'scheduled', createdBy: ctx.user._id, createdAt: ts, updatedAt: ts,
+          capacity, description, room, level, status: 'scheduled', createdBy: ctx.user._id, createdAt: ts, updatedAt: ts,
         });
         classIds.push(id);
       } catch (e) {
@@ -103,6 +110,9 @@ module.exports = {
       }
     }
     if (!classIds.length) throw E.conflict('DUPLICATE_CLASS', '所选时间已存在相同课程');
+    // 写入确认：重新读取，确保课程已真实保存
+    const saved = await ctx.store.find('classes', { seriesId });
+    if (saved.length !== classIds.length) throw E.conflict('WRITE_FAILED', `课程保存失败（应保存${classIds.length}节，实际${saved.length}节），请重试`);
     await ctx.store.create('classSeries', {
       _id: seriesId, mode, name, teacherId: teacher._id, startTime, duration,
       weekdays: mode === 'weekly' ? data.weekdays.map(Number) : [], startDate: dates[0], endDate: dates[dates.length - 1],
@@ -116,7 +126,7 @@ module.exports = {
       }
     }
     await ctx.audit('class.create', 'classSeries', seriesId, null, { mode, name, count: classIds.length }, '');
-    return { seriesId, created: classIds.length, skipped };
+    return { seriesId, created: classIds.length, classIds, skipped };
   },
 
   /** 按日期范围列出课程（管理端日历/列表），教师仅看自己的 */
@@ -169,6 +179,8 @@ module.exports = {
     }
     if (data.capacity !== undefined) patch.capacity = v.int(data.capacity, '人数上限', { optional: true, default: null, min: 1, max: 999 });
     if (data.description !== undefined) patch.description = v.str(data.description, '课程简介', { optional: true, max: 500 });
+    if (data.room !== undefined) patch.room = v.str(data.room, '教室', { optional: true, max: 20 });
+    if (data.level !== undefined) patch.level = v.int(data.level, '难度', { optional: true, default: 0, min: 0, max: 5 });
     const date = data.date !== undefined ? v.date(data.date, '上课日期') : cls.date;
     const startTime = data.startTime !== undefined ? v.time(data.startTime, '开始时间') : cls.startTime;
     const duration = data.duration !== undefined ? v.int(data.duration, '课程时长', { min: 15, max: 480 }) : cls.duration;
@@ -232,6 +244,7 @@ module.exports = {
     ctx.require(P.ROSTER_MANAGE);
     const cls = await ctx.store.get('classes', v.id(data.classId, '课程'));
     if (!cls) throw E.notFound('课程');
+    ctx.assertClassAccess(cls);
     const target = v.oneOf(data.target, '名单范围', ['class', 'series'], { optional: true, default: 'class' });
     const studentIds = v.ids(data.studentIds || [], '名单学员');
     const groups = (data.groups || []).map((g) => v.str(g, '分组', { max: 20 }));
@@ -249,7 +262,21 @@ module.exports = {
       });
     }
     await ctx.audit('roster.set', 'attendanceRoster', rosterId, null, { count: studentIds.length, groups }, '');
-    return { rosterId, count: studentIds.length };
+    const resolved = await resolveRoster(ctx.store, cls);
+    return { rosterId, count: resolved ? resolved.studentIds.length : 0 };
+  },
+
+  /** 按分组读取在籍学员（用于名单页「按分组添加」预览） */
+  async 'roster.groupMembers'(ctx, data) {
+    ctx.require(P.ROSTER_MANAGE);
+    const groups = (Array.isArray(data.groups) ? data.groups : []).map((g) => v.str(g, '分组', { max: 20 }));
+    if (!groups.length) return { items: [] };
+    const seen = new Map();
+    for (const g of groups) {
+      const list = await ctx.store.find('students', { groups: { $contains: g }, status: 'active' });
+      list.forEach((s) => seen.set(s._id, s));
+    }
+    return { items: [...seen.values()].map(views.studentForTeacher) };
   },
 
   /** 教师下拉列表（排课用） */

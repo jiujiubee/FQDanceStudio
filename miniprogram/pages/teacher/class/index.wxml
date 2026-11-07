@@ -12,13 +12,13 @@
 	  <view wx:if="{{cls.cancelReason}}" class="small danger">取消原因：{{cls.cancelReason}}</view>
 	  <view class="divider"></view>
 	  <view class="stats">
+		<view class="stat"><view class="num">{{stats.booked || 0}}</view><view class="lbl">已预约</view></view>
 		<view class="stat"><view class="num accent">{{stats.checkedIn}}</view><view class="lbl">已签到</view></view>
-		<view class="stat"><view class="num">{{hasRoster ? stats.expected : '—'}}</view><view class="lbl">名单人数</view></view>
 		<view class="stat"><view class="num">{{hasRoster ? stats.notCheckedIn : '—'}}</view><view class="lbl">未签到</view></view>
 	  </view>
-	  <view wx:if="{{canManage}}" class="btn-group mt">
-		<button class="btn light small" bindtap="toRoster">上课名单</button>
-		<button class="btn light small" bindtap="toEdit">编辑课程</button>
+	  <view wx:if="{{canManage || canRoster}}" class="btn-group mt">
+		<button wx:if="{{canRoster}}" class="btn light small" bindtap="toRoster">上课名单</button>
+		<button wx:if="{{canManage}}" class="btn light small" bindtap="toEdit">编辑课程</button>
 	  </view>
 	</view>
 
@@ -30,13 +30,18 @@
 
 	<block wx:if="{{hasRoster}}">
 	  <view class="section-title"><text>未签到（{{notCheckedIn.length}}）</text></view>
-	  <attendance-list list="{{notCheckedIn}}" can-mark="{{canMark && cls.status !== 'cancelled'}}" empty-text="名单内学员均已签到" bind:mark="onMark" />
+	  <attendance-list list="{{notCheckedIn}}" can-mark="{{canMark && cls.status !== 'cancelled'}}" empty-text="已预约/名单内学员均已签到" bind:mark="onMark" />
 	</block>
-	<view wx:else class="hint">本课程未设置上课名单，因此不统计未签到学员。</view>
+	<view wx:else class="hint">暂无学员预约，也未设置上课名单。</view>
 
 	<block wx:if="{{others.length}}">
 	  <view class="section-title"><text>其他记录</text></view>
 	  <attendance-list list="{{others}}" can-mark="{{canMark}}" bind:mark="onMark" />
+	</block>
+
+	<block wx:if="{{cancelled.length}}">
+	  <view class="section-title"><text class="grey">已取消预约（{{cancelled.length}}）</text></view>
+	  <view class="card small grey"><text wx:for="{{cancelled}}" wx:key="studentId">{{item.name}}{{index < cancelled.length - 1 ? '、' : ''}}</text></view>
 	</block>
   </block>
 

@@ -24,7 +24,22 @@ async function setup(opts) {
     },
   };
   const handle = createApi(store, { env: opts.env || { APP_ENV: 'production' }, logger: false, providers });
-  const call = async (openid, action, data, extra) => handle({ action, data, ...(extra || {}) }, openid);
+  const call = async (openid, action, data, extra) => {
+    // 预约制：旧用例中的学员签到默认已预约（预约规则另由 booking.test.js 覆盖）
+    if (action === 'attendance.checkIn' && data && data.classId && !(opts && opts.noAutoBook)) await autoBook(openid, data.classId);
+    return handle({ action, data, ...(extra || {}) }, openid);
+  };
+  const autoBook = async (openid, classId) => {
+    const u = await store.get('users', ids.userIdFromOpenid(openid));
+    const cls = await store.get('classes', classId);
+    if (!u || !u.studentId || !cls) return;
+    const stu = await store.get('students', u.studentId);
+    if (!stu) return;
+    const bk = require('../lib/booking-core');
+    const cur = await store.get('classBookings', bk.bookingId(classId, stu._id));
+    if (cur && cur.status !== 'cancelled') return;
+    for (let i = 0; i < 20; i += 1) { try { await store.transaction((tx) => bk.upsertBooking(tx, cls, stu, { source: 'self', operatorId: u._id, enforceCapacity: false, status: 'booked' })); return; } catch (e) { if (e.code !== 'TX_CONFLICT' && e.code !== 'ALREADY_BOOKED') throw e; } }
+  };
   const ok = async (openid, action, data, extra) => {
     const r = await call(openid, action, data, extra);
     if (!r.ok) throw new Error(`${action} failed: ${r.code} ${r.message}`);
@@ -34,20 +49,14 @@ async function setup(opts) {
   const uid = (openid) => ids.userIdFromOpenid(openid);
   const env = { store, handle, call, ok, system, uid, sms, wxPhones, setNow: (ms) => time.setClock(() => ms) };
   let phoneSeq = 0;
-  /** 通过微信手机号快速验证注册学员 */
-  env.registerStudent = (openid, data) => {
-    const phone = (data && data.phone) || `139${String((phoneSeq += 1)).padStart(8, '0')}`;
-    const code = `wx-${openid}`;
-    wxPhones[code] = phone;
-    return ok(openid, 'auth.registerStudent', { agreePrivacy: true, ...data, phone: undefined, phoneCode: code });
-  };
+  /** 学员注册（无需手机号验证；手机号为选填资料） */
+  env.registerStudent = (openid, data) => ok(openid, 'auth.registerStudent', { agreePrivacy: true, ...data });
 
-  const account = (openid, name) => ok(openid, 'auth.setupAccount', { name, agreePrivacy: true });
+  const account = (openid, name) => env.registerStudent(openid, { name });
   await account('owner-openid', '店主');
   const boot = await system('system.bootstrapOwner', { userId: uid('owner-openid') });
   if (!boot.ok) throw new Error(`bootstrap failed: ${boot.message}`);
   for (const [openid, name, role] of [
-    ['admin-openid', '管理员', 'admin'],
     ['teacher-openid', '林老师', 'teacher'],
     ['teacher2-openid', '王老师', 'teacher'],
   ]) {
@@ -63,14 +72,14 @@ async function setup(opts) {
   env.student2Id = s2.studentId;
 
   env.createClass = async (extra) => {
-    const r = await ok('admin-openid', 'class.create', {
+    const r = await ok('owner-openid', 'class.create', {
       mode: 'single', name: '爵士舞基础', teacherId: env.teacherId, date: '2024-06-03',
       startTime: '10:30', duration: 60, requestId: reqId(), ...extra,
     });
-    const list = await ok('admin-openid', 'class.list', { from: '2024-06-01', to: '2024-07-31' });
+    const list = await ok('owner-openid', 'class.list', { from: '2024-06-01', to: '2024-07-31' });
     return { ...r, classes: list.classes.filter((c) => c.seriesId === r.seriesId) };
   };
-  env.givePass = (studentId, credits, extra) => ok('admin-openid', 'membership.create', {
+  env.givePass = (studentId, credits, extra) => ok('owner-openid', 'membership.create', {
     studentId, type: 'pass', credits, requestId: reqId(), ...extra,
   });
   return env;

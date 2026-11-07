@@ -1,0 +1,45 @@
+<view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:elif="{{home}}">
+	<!-- A. 海报轮播 -->
+	<swiper wx:if="{{home.posters.length}}" class="posters" indicator-dots autoplay circular>
+	  <swiper-item wx:for="{{home.posters}}" wx:key="*this">
+		<image class="poster" src="{{item}}" mode="aspectFill" />
+	  </swiper-item>
+	</swiper>
+
+	<!-- B. 明星老师 -->
+	<view class="card mt">
+	  <view class="section-title">明星老师</view>
+	  <view wx:if="{{!home.teachers.length}}" class="small muted">暂无导师信息</view>
+	  <scroll-view wx:else scroll-x class="stars">
+		<view wx:for="{{home.teachers}}" wx:key="_id" class="star-t" data-id="{{item._id}}" bindtap="openTeacher">
+		  <image class="avatar" src="{{item.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		  <view class="small bold ellipsis">{{item.name}}</view>
+		</view>
+	  </scroll-view>
+	</view>
+
+	<!-- C. 关于我们 -->
+	<view class="card mt">
+	  <view class="section-title">关于我们</view>
+	  <view class="row">
+		<image wx:if="{{home.logo}}" class="avatar" src="{{home.logo}}" mode="aspectFill" />
+		<view class="grow">
+		  <view class="bold">{{home.studioName}}</view>
+		  <view wx:if="{{home.intro}}" class="tiny grey">{{home.intro}}</view>
+		</view>
+	  </view>
+	  <view wx:if="{{home.about}}" class="small grey mt">{{home.about}}</view>
+	  <view wx:if="{{home.businessHours}}" class="row between mt">
+		<text class="small grey">营业时间</text><text class="small">{{home.businessHours}}</text>
+	  </view>
+	  <view wx:if="{{home.phone}}" class="row between mt" bindtap="callPhone">
+		<text class="small grey">联系电话</text><text class="small accent">{{home.phone}}</text>
+	  </view>
+	  <view wx:if="{{home.address}}" class="row between mt" bindtap="openMap">
+		<text class="small grey">地址</text><text class="small accent grow" style="text-align:right">{{home.address}}</text>
+	  </view>
+	</view>
+  </block>
+</view>

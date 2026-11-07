@@ -12,6 +12,7 @@ const modules = [
   require('./services/memberships'),
   require('./services/staff'),
   require('./services/system'),
+  require('./services/studio'),
   require('./services/dev'),
 ];
 

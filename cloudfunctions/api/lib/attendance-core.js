@@ -7,6 +7,7 @@ const time = require('./time');
 const ids = require('./ids');
 const { E, AppError } = require('./errors');
 const rules = require('./membership-rules');
+const booking = require('./booking-core');
 
 const MAX_RETRY = 5;
 
@@ -50,7 +51,7 @@ function assertClassCheckable(cls, settings, enforceWindow) {
  * opts: { classId, studentId, operatorId, source: 'self'|'manual', reason, enforceWindow, settings }
  */
 async function markPresent(store, opts) {
-  const { classId, studentId, operatorId, source, reason, enforceWindow, settings } = opts;
+  const { classId, studentId, operatorId, source, reason, enforceWindow, settings, requireNotStarted } = opts;
   // 事务中不支持条件查询：先查出候选会员卡 ID，再在事务中逐一重新读取以获得一致性快照
   const candidates = await store.find('memberships', { studentId, status: { $in: ['active', 'suspended', 'expired'] } });
   const attId = ids.attendanceId(classId, studentId);
@@ -58,6 +59,8 @@ async function markPresent(store, opts) {
   return withRetry(() => store.transaction(async (tx) => {
     const cls = await tx.get('classes', classId);
     assertClassCheckable(cls, settings, enforceWindow);
+    if (requireNotStarted && time.now() >= cls.startAt) throw E.rule('CLASS_STARTED', '课程已开始或已结束，不能预约');
+
     const student = await tx.get('students', studentId);
     if (!student || student.status === 'deleted') throw E.notFound('学员');
     if (student.status === 'suspended') throw E.rule('STUDENT_SUSPENDED', '学员账户已停用');
@@ -73,16 +76,23 @@ async function markPresent(store, opts) {
     const { membership, reason: why } = rules.pickMembership(ms, cls.date);
     if (!membership) throw E.rule(why, rules.REASON_TEXT[why]);
 
+    const ts = time.now();
+    // 关联预约：已预约 → 已签到；未预约的临时到场学员自动补一条预约记录。本人签到受容量限制，教师代签不受限
+    const bk = await booking.upsertBooking(tx, cls, student, {
+      source: source === 'self' ? 'self' : 'teacher', operatorId, enforceCapacity: source === 'self', status: 'checked_in', checkedInAt: ts,
+    });
+
     const deduction = await rules.deductForAttendance(tx, membership, cls.date, operatorId, attId,
       source === 'manual' ? `教师代签：${reason || ''}`.trim() : '上课签到');
-    const ts = time.now();
     const entry = { at: ts, operatorId, from: existing ? existing.status : 'none', to: 'present', reason: reason || (source === 'self' ? '学员签到' : '') };
     const doc = {
       classId, studentId,
       className: cls.name, teacherId: cls.teacherId, teacherName: cls.teacherName,
       classDate: cls.date, startTime: cls.startTime, endTime: cls.endTime,
       studentName: student.name, studentAvatar: student.avatar || '',
-      status: 'present', source, checkInAt: ts, deduction,
+      status: 'present', source, checkInType: source === 'self' ? 'self' : 'teacher_proxy',
+      operatorId, bookingId: bk.booking.bookingId || booking.bookingId(classId, studentId),
+      checkInAt: ts, deduction,
       history: [...((existing && existing.history) || []), entry],
       createdAt: existing ? existing.createdAt : ts, updatedAt: ts,
     };
@@ -109,6 +119,7 @@ async function markAbsent(store, opts) {
     const ts = time.now();
     if (existing && existing.status === 'present') {
       await rules.refundAttendance(tx, existing.deduction, studentId, operatorId, attId, `签到更正为缺勤：${reason}`);
+      await booking.revertCheckIn(tx, classId, studentId, operatorId, reason);
     }
     const entry = { at: ts, operatorId, from: existing ? existing.status : 'none', to: 'absent', reason };
     const doc = {
@@ -123,6 +134,38 @@ async function markAbsent(store, opts) {
     if (existing) await tx.set('attendance', attId, doc);
     else await tx.create('attendance', { _id: attId, ...doc });
     return { attendanceId: attId, from: entry.from };
+  }));
+  await rules.refreshSummary(store, studentId).catch(() => null);
+  return r;
+}
+
+/**
+ * 学员取消预约：同一事务内「取消预约 + 出勤标记为 cancelled + 按原扣减记录退还 + 写退款流水」。
+ * 出勤状态由 present 变为 cancelled 后不会再次退款，保证退款幂等。
+ */
+async function cancelBookingWithRefund(store, opts) {
+  const { classId, studentId, operatorId, cutoffMinutes, reason } = opts;
+  const attId = ids.attendanceId(classId, studentId);
+  const r = await withRetry(() => store.transaction(async (tx) => {
+    const cls = await tx.get('classes', classId);
+    if (!cls) throw E.notFound('课程');
+    if (time.now() >= cls.startAt - (cutoffMinutes || 0) * 60000) {
+      throw E.rule('CANCEL_CLOSED', `开课前${cutoffMinutes}分钟内不能取消预约`);
+    }
+    const res = await booking.cancelBooking(tx, cls, studentId, operatorId, reason);
+    const att = await tx.get('attendance', attId);
+    let refunded = false;
+    if (att && att.status === 'present') {
+      await rules.refundAttendance(tx, att.deduction, studentId, operatorId, attId, `取消预约退还：${cls.name}`);
+      const ts = time.now();
+      await tx.update('attendance', attId, {
+        status: 'cancelled', refunded: true, refundedAt: ts,
+        history: [...(att.history || []), { at: ts, operatorId, from: 'present', to: 'cancelled', reason: reason || '取消预约' }],
+        updatedAt: ts,
+      });
+      refunded = true;
+    }
+    return { ...res, refunded };
   }));
   await rules.refreshSummary(store, studentId).catch(() => null);
   return r;
@@ -148,7 +191,17 @@ async function cancelClassAttendance(store, cls, operatorId, refund, reason) {
     if (refund) refunded += 1;
     await rules.refreshSummary(store, a.studentId).catch(() => null);
   }
-  return { affected: list.length, refunded };
+  // 预约记录保留，状态改为「已取消」并注明原因
+  const bookings = await store.find('classBookings', { classId: cls._id, status: { $in: ['booked', 'checked_in', 'completed'] } });
+  for (const b of bookings) {
+    const ts = time.now();
+    await store.update('classBookings', b._id, {
+      status: 'cancelled', cancelledAt: ts, cancelledBy: operatorId, cancelReason: `课程取消：${reason || ''}`.trim(), classCancelled: true,
+      history: [...(b.history || []), { at: ts, operatorId, from: b.status, to: 'cancelled', reason: reason || '课程取消' }],
+      updatedAt: ts,
+    });
+  }
+  return { affected: list.length, refunded, bookingsCancelled: bookings.length };
 }
 
-module.exports = { withRetry, checkInWindow, assertClassCheckable, markPresent, markAbsent, cancelClassAttendance };
+module.exports = { withRetry, checkInWindow, assertClassCheckable, markPresent, markAbsent, cancelBookingWithRefund, cancelClassAttendance };

@@ -8,7 +8,7 @@ test('D1. 开发环境：生成测试数据并切换模拟身份', async () => {
   const seeded = await env.ok('dev-openid', 'dev.seed', {});
   assert.ok(seeded.accounts.includes('owner'));
   const asOwner = await env.ok('dev-openid', 'auth.login', {}, { devAs: 'owner' });
-  assert.deepEqual([...asOwner.roles].sort(), ['owner', 'teacher']);
+  assert.deepEqual([...asOwner.roles].sort(), ['owner', 'student', 'teacher']);
   const asStudent = await env.ok('dev-openid', 'auth.login', {}, { devAs: 'student' });
   assert.deepEqual(asStudent.roles, ['student']);
   const blocked = await env.call('dev-openid', 'staff.list', {}, { devAs: 'student' });

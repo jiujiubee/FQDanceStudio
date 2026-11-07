@@ -26,6 +26,19 @@ const DEFAULT_SETTINGS = {
   staff: {
     inviteValidHours: 72,
   },
+  // 学生端首页：工作室资料（由店主在「首页资料」中维护）
+  studio: {
+    posters: [],
+    intro: '',
+    features: [],
+    about: '',
+    address: '',
+    phone: '',
+  },
+  booking: {
+    // 开课前多少分钟停止取消预约
+    cancelBeforeMinutes: 30,
+  },
 };
 
 module.exports = { DEFAULT_SETTINGS };

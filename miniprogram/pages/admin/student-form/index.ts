@@ -8,6 +8,16 @@ const GENDERS = [
   { value: 'female', text: '女' },
 ]
 
+const LIST_PAGE = 'pages/admin/students/index'
+
+/** 保存后返回「学员管理」列表（列表页 onShow 会自动刷新） */
+function backToList() {
+  const pages = getCurrentPages()
+  const idx = pages.map((p) => p.route).lastIndexOf(LIST_PAGE)
+  if (idx >= 0) wx.navigateBack({ delta: pages.length - 1 - idx })
+  else wx.redirectTo({ url: '/' + LIST_PAGE })
+}
+
 Page({
   data: {
     id: '',
@@ -51,8 +61,7 @@ Page({
     const f = this.data.form
     if (!f.name.trim()) { wx.showToast({ title: '请输入姓名', icon: 'none' }); return }
     const phone = normalizePhone(f.phone || '')
-    if (!phone) { wx.showToast({ title: '请填写手机号', icon: 'none' }); return }
-    if (!isValidPhone(phone)) { wx.showToast({ title: '请输入正确的中国大陆手机号', icon: 'none' }); return }
+    if (phone && !isValidPhone(phone)) { wx.showToast({ title: '请输入正确的中国大陆手机号', icon: 'none' }); return }
     const payload = {
       name: f.name.trim(), wxid: f.wxid.trim(), phone, gender: f.gender, birthday: f.birthday,
       emergencyContact: f.emergencyContact.trim(), remark: f.remark.trim(),
@@ -68,10 +77,10 @@ Page({
       await new Promise((res) =>
         wx.showModal({ title: '登记成功', content: '学员使用该手机号在小程序中完成验证注册后，将自动关联此档案。', showCancel: false, complete: res }),
       )
-      wx.redirectTo
+      backToList()
       return
     }
     wx.showToast({ title: '已保存', icon: 'success' })
-    setTimeout(() => wx.navigateBack(), 600)
+    setTimeout(backToList, 600)
   },
 })

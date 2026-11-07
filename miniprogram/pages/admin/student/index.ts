@@ -3,7 +3,7 @@ import { can, ensureRegistered } from '../../../utils/session'
 import { addDays, today } from '../../../utils/date'
 import { MEMBERSHIP_TYPE, TX_TYPE } from '../../../utils/format'
 
-type ModalKind = '' | 'adjust' | 'renew' | 'toggle' | 'create' | 'status' | 'history'
+type ModalKind = '' | 'adjust' | 'renew' | 'toggle' | 'create' | 'status' | 'history' | 'teacher'
 
 /** 自然月有效期最后一天（含），与后端 time.periodEnd 一致，仅用于表单预览 */
 function periodEnd(start: string, n: number): string {
@@ -24,6 +24,7 @@ Page({
     id: '',
     loading: true,
     st: {} as any,
+    account: null as any,
     full: false,
     memberships: [] as any[],
     history: [] as any[],
@@ -38,7 +39,7 @@ Page({
     presets: [10, 20, 30, 50] as number[],
     modal: { show: false, kind: '' as ModalKind, title: '', content: '', needReason: false, danger: false, target: null as any },
     adj: { sign: 1, n: '' },
-    renew: { expireDate: '', credits: '', type: '', policyMode: '', changePolicy: false, quota: '' },
+    renew: { expireDate: '', credits: '', type: '', policyMode: '' },
     nc: { type: 'CLASS_PASS', credits: '', months: '', policyMode: 'unlimited', quota: '', startDate: today(), expireDate: '', customExpire: false, price: '', reqId: '' },
     hist: [] as any[],
   },
@@ -66,7 +67,7 @@ Page({
   async load() {
     try {
       const r = await call<any>('student.get', { studentId: this.data.id })
-      this.setData({ st: r.student, full: r.memberships !== null, memberships: r.memberships || [], loading: false })
+      this.setData({ st: r.student, account: r.account || null, full: r.memberships !== null, memberships: r.memberships || [], loading: false })
       this.loadHistory(0)
     } catch (e) {
       this.setData({ loading: false })
@@ -118,6 +119,13 @@ Page({
     this.setData({ 'nc.expireDate': exp })
   },
 
+  askTeacher() {
+    const a = this.data.account
+    if (!a) return
+    if (a.teaching) this.openModal('teacher', '撤销老师', '撤销后该账号仍保留学员身份，历史课程与签到记录不受影响。', true, true)
+    else this.openModal('teacher', '设为老师', '设为老师后可在工作台管理所授课程，并保留学员身份。', false, false)
+  },
+
   askStatus() {
     const off = this.data.st.status !== 'suspended'
     this.openModal('status', off ? '停用学员' : '恢复学员', off ? '停用后学员将无法签到。' : '', true, off)
@@ -132,7 +140,7 @@ Page({
     } else if (op === 'renew') {
       const base = item.expireDate >= today() ? item.expireDate : addDays(today(), -1)
       const exp = item.type === 'CLASS_PASS' ? addDays(base, 180) : periodEnd(addDays(base, 1), DEFAULT_MONTHS[item.type] || 1)
-      this.setData({ renew: { expireDate: exp, credits: '', type: item.type, policyMode: item.policyMode, changePolicy: false, quota: '' } })
+      this.setData({ renew: { expireDate: exp, credits: '', type: item.type, policyMode: item.policyMode } })
       this.openModal('renew', '续费 / 延长有效期', `${MEMBERSHIP_TYPE[item.type] || ''} ${item.name} 当前到期：${item.expireDate}`, false, false, item)
     } else if (op === 'history') {
       this.loadMembershipHistory(item)
@@ -164,15 +172,6 @@ Page({
   },
   onRenewCredits(e: WechatMiniprogram.Input) {
     this.setData({ 'renew.credits': e.detail.value })
-  },
-  onRenewQuota(e: WechatMiniprogram.Input) {
-    this.setData({ 'renew.quota': e.detail.value })
-  },
-  toggleRenewPolicy() {
-    this.setData({ 'renew.changePolicy': !this.data.renew.changePolicy })
-  },
-  setRenewPolicy(e: WechatMiniprogram.TouchEvent) {
-    this.setData({ 'renew.policyMode': e.currentTarget.dataset.m })
   },
   setNcType(e: WechatMiniprogram.TouchEvent) {
     this.setData({ 'nc.type': e.currentTarget.dataset.t, 'nc.months': '' })
@@ -213,15 +212,6 @@ Page({
       const rn = this.data.renew
       const credits = parseInt(rn.credits || '0', 10) || 0
       const payload: Record<string, any> = { membershipId: target._id, expireDate: rn.expireDate, credits }
-      if (rn.changePolicy) {
-        payload.policyMode = rn.policyMode
-        if (rn.policyMode === 'quota') {
-          const q = parseInt(rn.quota, 10)
-          if (!(q > 0)) { wx.showToast({ title: '请输入有效期内次数', icon: 'none' }); return }
-          payload.quota = q
-          delete payload.credits
-        }
-      }
       this.closeModal()
       r = await callWithToast('membership.renew', payload, '处理中')
     } else if (kind === 'history') {
@@ -230,6 +220,10 @@ Page({
     } else if (kind === 'toggle') {
       this.closeModal()
       r = await callWithToast('membership.setStatus', { membershipId: target._id, status: target.status === 'suspended' ? 'active' : 'suspended', reason }, '处理中')
+    } else if (kind === 'teacher') {
+      this.closeModal()
+      const enable = !(this.data.account && this.data.account.teaching)
+      r = await callWithToast('student.setTeacher', { studentId: this.data.id, enable, reason: reason || undefined }, '处理中')
     } else if (kind === 'status') {
       this.closeModal()
       r = await callWithToast('student.setStatus', { studentId: this.data.id, status: this.data.st.status === 'suspended' ? 'active' : 'suspended', reason }, '处理中')
@@ -252,7 +246,12 @@ Page({
       }
       if (nc.price) payload.priceCents = Math.round(parseFloat(nc.price) * 100) || 0
       this.closeModal()
-      r = await callWithToast('membership.create', payload, '开卡中')
+      r = await callWithToast<any>('membership.create', payload, '开卡中')
+      if (r && r.merged && !r.idempotent) {
+        wx.showToast({ title: `已并入原次卡：${r.previousBalance} → ${r.newBalance} 节`, icon: 'none', duration: 2500 })
+        this.load()
+        return
+      }
     }
     if (r) {
       wx.showToast({ title: '已完成', icon: 'success' })

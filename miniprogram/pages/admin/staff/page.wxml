@@ -1,7 +1,7 @@
 <wxs src="../../../utils/fmt.wxs" module="f" />
 <view class="container">
   <view class="page-title">员工管理</view>
-  <view class="page-sub">搜索已注册用户并授予教师、管理员或店主角色，一个账户可同时拥有多个角色</view>
+  <view class="page-sub">仅店主可授予或撤销教师/店主角色，一个账户可同时拥有多个角色（注册用户默认为学员）</view>
 
   <view class="card">
 	<view class="bold mb">搜索用户</view>

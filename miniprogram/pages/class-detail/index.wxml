@@ -1,0 +1,52 @@
+<wxs src="../../utils/fmt.wxs" module="f" />
+<view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <block wx:elif="{{cls}}">
+	<view class="card">
+	  <view class="row between">
+		<text class="page-title nm">{{cls.name}}</text>
+		<text class="tag {{cls.status === 'cancelled' ? 'danger' : ''}}">{{f.label('phase', cls.phase)}}</text>
+	  </view>
+	  <view class="small grey mt-s">{{f.dateCN(cls.date)}} {{cls.startTime}} - {{cls.endTime}}</view>
+	  <view wx:if="{{cls.room}}" class="small grey">教室：{{cls.room}}</view>
+	  <view wx:if="{{cls.level}}" class="small grey row">难度：<text wx:for="{{[1,2,3,4,5]}}" wx:for-item="n" wx:key="*this" class="star {{n <= cls.level ? 'on' : ''}}">★</text></view>
+	  <view wx:if="{{cls.cancelReason}}" class="small danger">取消原因：{{cls.cancelReason}}</view>
+	  <view wx:if="{{cls.description}}" class="small grey mt">{{cls.description}}</view>
+	</view>
+
+	<view class="card row teacher" bindtap="openTeacher">
+	  <view class="t-av">
+		<image wx:if="{{cls.teacherAvatar}}" src="{{cls.teacherAvatar}}" mode="aspectFill" />
+		<text wx:else>{{f.initial(cls.teacherName)}}</text>
+	  </view>
+	  <view class="grow t-info"><text class="tiny muted">授课老师</text><text class="bold t-nm">{{cls.teacherName}}</text></view>
+	  <image class="t-arrow" src="/assets/icons/right-muted.svg" />
+	</view>
+
+	<view class="section-title">
+	  <text>已预约学员</text>
+	  <text class="extra">{{cls.bookedCount}}{{cls.capacity ? ' / ' + cls.capacity : ''}} 人</text>
+	</view>
+	<view class="card avs">
+	  <view wx:for="{{cls.bookedStudents}}" wx:key="id" class="av">
+		<image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
+		<text wx:else>{{item.initial}}</text>
+	  </view>
+	  <view wx:if="{{cls.bookedCount > cls.bookedStudents.length}}" class="av more">+{{cls.bookedCount - cls.bookedStudents.length}}</view>
+	  <text wx:if="{{!cls.bookedCount}}" class="small muted">暂无学员预约</text>
+	</view>
+
+	<view wx:if="{{cls.status !== 'cancelled'}}" class="footer-bar">
+	  <block wx:if="{{cls.state === 'checked_in'}}">
+		<button wx:if="{{cls.canCancelBooking}}" class="btn ghost" disabled="{{busy}}" bindtap="cancelBook">取消预约</button>
+		<view wx:else class="center accent">已预约{{cls.phase === 'upcoming' ? ' · 开课前30分钟内不可取消' : ''}}</view>
+	  </block>
+	  <button wx:elif="{{cls.canBook}}" class="btn" hover-class="btn-hover" disabled="{{busy}}" bindtap="book">预约</button>
+	  <block wx:elif="{{cls.bookingStatus === 'booked' && cls.phase !== 'ended'}}">
+		<button wx:if="{{cls.canCancelBooking}}" class="btn ghost" disabled="{{busy}}" bindtap="cancelBook">取消预约</button>
+		<button wx:else class="btn" disabled>已预约{{cls.hint && cls.hint !== '已预约' ? ' · ' + cls.hint : ''}}</button>
+	  </block>
+	  <button wx:else class="btn" disabled>{{cls.hint || '不可预约'}}</button>
+	</view>
+  </block>
+</view>

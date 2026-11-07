@@ -3,7 +3,7 @@
 	<view class="page-title">学员管理</view>
 	<button wx:if="{{canManage}}" class="btn small" hover-class="btn-hover" bindtap="create">登记学员</button>
   </view>
-  <search-bar placeholder="搜索姓名 / 微信号 / 手机号 / 学号" bind:search="onSearch" />
+  <search-bar placeholder="搜索姓名 / 微信号 / 手机号" bind:search="onSearch" />
   <view class="segment mt mb">
 	<view class="seg {{status === 'all' ? 'on' : ''}}" data-s="all" bindtap="setStatus">全部</view>
 	<view class="seg {{status === 'active' ? 'on' : ''}}" data-s="active" bindtap="setStatus">正常</view>

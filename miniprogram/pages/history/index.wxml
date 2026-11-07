@@ -1,7 +1,11 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
 <view class="container">
-  <view class="page-title">签到记录</view>
-  <view class="page-sub">共 {{items.length}}{{hasMore ? '+' : ''}} 条记录</view>
+  <view class="page-title">上课记录</view>
+  <view class="card row between mb">
+    <text class="grey">已完成课时</text>
+    <text class="bold accent" style="font-size:48rpx">{{completedTotal}}</text>
+  </view>
+  <view class="page-sub">当前筛选共 {{total}} 节</view>
 
   <view class="segment mb">
 	<view wx:for="{{ranges}}" wx:key="key" class="seg {{range === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="setRange">{{item.text}}</view>
@@ -23,12 +27,12 @@
 	<view wx:for="{{items}}" wx:key="_id" class="card rec">
 	  <view class="row between">
 		<text class="bold ellipsis grow">{{item.className}}</text>
-		<text class="tag {{item.status === 'present' ? 'success' : item.status === 'absent' ? 'danger' : ''}}">{{f.label('status', item.status)}}</text>
+		<text class="tag success">已完成</text>
 	  </view>
 	  <view class="small grey mt-s">{{f.dateCN(item.classDate)}} {{item.startTime}} - {{item.endTime}} · {{item.teacherName}}</view>
-	  <view wx:if="{{item.checkInAt && item.status === 'present'}}" class="tiny muted">签到时间 {{f.full(item.checkInAt)}}{{item.source === 'manual' ? '（老师代签）' : ''}}</view>
+	  <view wx:if="{{item.source === 'manual'}}" class="tiny muted">老师代签</view>
 	</view>
-	<empty-state wx:if="{{!items.length}}" icon="history" title="暂无签到记录" desc="签到后会在这里显示" />
+	<empty-state wx:if="{{!items.length}}" icon="history" title="暂无上课记录" desc="开课后的有效课程会在这里显示" />
 	<view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
   </block>
 </view>

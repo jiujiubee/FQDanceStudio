@@ -1,6 +1,6 @@
 import { call } from './api'
 
-export type Role = 'owner' | 'admin' | 'teacher' | 'student'
+export type Role = 'owner' | 'teacher' | 'student'
 
 export interface Session {
   registered: boolean
@@ -67,7 +67,7 @@ export function hasRole(role: Role): boolean {
 }
 
 export function hasStaffRole(s: Session): boolean {
-  return (s.roles || []).some((r) => r === 'owner' || r === 'admin' || r === 'teacher')
+  return (s.roles || []).some((r) => r === 'owner' || r === 'teacher')
 }
 
 /** 未注册时跳转注册页；返回是否已注册 */
@@ -91,4 +91,34 @@ export async function ensureRegistered(): Promise<Session | null> {
 
 export function clearSession(): void {
   current = null
+}
+
+const PREVIEW_KEY = 'studentPreview'
+
+/**
+ * 学生端预览：仅改变前端界面展示（底部导航与页面入口），
+ * 不修改账户真实角色，也不影响后端权限校验。仅店主/老师可开启。
+ */
+export function isStudentPreview(): boolean {
+  if (!current || !hasStaffRole(current)) return false
+  try {
+    return wx.getStorageSync(PREVIEW_KEY) === true
+  } catch (e) {
+    return false
+  }
+}
+
+export function setStudentPreview(on: boolean): void {
+  if (on && !(current && hasStaffRole(current))) return
+  try {
+    if (on) wx.setStorageSync(PREVIEW_KEY, true)
+    else wx.removeStorageSync(PREVIEW_KEY)
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+/** 当前界面是否按管理端展示（店主/老师且未开启学生端预览） */
+export function showStaffUI(): boolean {
+  return isStaff() && !isStudentPreview()
 }

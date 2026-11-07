@@ -8,9 +8,11 @@
     "test": "node --test \"cloudfunctions/api/test/*.test.js\" \"tests/*.test.js\"",
     "test:backend": "node --test \"cloudfunctions/api/test/*.test.js\"",
     "test:frontend": "node --test \"tests/*.test.js\"",
-    "icons": "node tools/icons.js"
+    "icons": "node tools/icons.js",
+    "db:setup": "node scripts/setup-database.js"
   },
   "devDependencies": {
+    "@cloudbase/manager-node": "^5.9.4",
     "miniprogram-api-typings": "^3.12.3",
     "typescript": "^5.4.5"
   }

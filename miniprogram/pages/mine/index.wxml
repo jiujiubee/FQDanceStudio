@@ -1,15 +1,21 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
 <view class="container">
+  <loading-skeleton wx:if="{{loading}}" count="3" />
+  <view wx:elif="{{error}}" class="card">
+    <empty-state icon="user" title="加载失败" desc="{{error}}" />
+    <button class="btn" hover-class="btn-hover" bindtap="retry">重试</button>
+  </view>
+  <block wx:else>
   <view class="card row head" bindtap="toProfile">
 	<view class="avatar lg">
 	  <image wx:if="{{avatar}}" src="{{avatar}}" mode="aspectFill" />
 	  <text wx:else>{{f.initial(name)}}</text>
 	</view>
 	<view class="grow info">
-	  <view class="nm">{{name || '未注册'}}</view>
+	  <view class="nm">{{name}}</view>
 	  <view class="row mt-s">
 		<text class="tag dark">{{roleLabel}}</text>
-		<text wx:if="{{student.studentNo}}" class="tiny muted ml">学号 {{student.studentNo}}</text>
+		<text wx:if="{{preview}}" class="tag">学生端预览中</text>
 	  </view>
 	</view>
 	<image class="arrow" src="/assets/icons/right-muted.svg" />
@@ -29,8 +35,8 @@
 	<view class="cell" bindtap="toProfile">
 	  <image class="icon" src="/assets/icons/edit.svg" /><text class="grow">个人资料</text><image class="arrow" src="/assets/icons/right-muted.svg" />
 	</view>
-	<view wx:if="{{!isStaff}}" class="cell" bindtap="toStaffJoin">
-	  <image class="icon" src="/assets/icons/key.svg" /><text class="grow">成为员工</text><image class="arrow" src="/assets/icons/right-muted.svg" />
+	<view wx:if="{{isStaff}}" class="cell" bindtap="togglePreview">
+	  <image class="icon" src="/assets/icons/user.svg" /><text class="grow">{{preview ? '退出学生端预览' : '学生端预览'}}</text><image class="arrow" src="/assets/icons/right-muted.svg" />
 	</view>
 	<view class="cell" bindtap="toPrivacy">
 	  <image class="icon" src="/assets/icons/shield.svg" /><text class="grow">隐私政策与个人信息</text><image class="arrow" src="/assets/icons/right-muted.svg" />
@@ -40,4 +46,5 @@
 	</view>
   </view>
   <view class="ver tiny muted">{{studioName}}</view>
+  </block>
 </view>

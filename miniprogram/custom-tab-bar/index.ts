@@ -1,22 +1,23 @@
-import { getSession, hasStaffRole } from '../utils/session'
+import { getSession, hasStaffRole, isStudentPreview } from '../utils/session'
 
 interface TabItem { path: string; text: string; icon: string }
 
+const HOME: TabItem = { path: '/pages/home/index', text: '首页', icon: 'dashboard' }
 const SCHEDULE: TabItem = { path: '/pages/schedule/index', text: '课程', icon: 'calendar' }
-const HISTORY: TabItem = { path: '/pages/history/index', text: '签到记录', icon: 'history' }
-const WORKBENCH: TabItem = { path: '/pages/workbench/index', text: '工作台', icon: 'dashboard' }
+const HISTORY: TabItem = { path: '/pages/history/index', text: '上课记录', icon: 'history' }
+const WORKBENCH: TabItem = { path: '/pages/workbench/index', text: '工作台', icon: 'list' }
 const MINE: TabItem = { path: '/pages/mine/index', text: '我的', icon: 'user' }
 
-/** 根据角色生成底部导航：学员看课程/签到记录；员工看工作台；同时是学员的员工两者都有 */
+/**
+ * 根据角色生成底部导航：
+ * 学员：首页/课程/签到记录/我的；
+ * 店主与老师共用同一结构：首页/工作台/我的，具体功能由权限控制（前后端均校验）。
+ */
 export function tabsFor(): TabItem[] {
   const s = getSession()
-  if (!s || !s.registered) return [SCHEDULE, MINE]
-  const staff = hasStaffRole(s)
-  const list: TabItem[] = []
-  if (staff) list.push(WORKBENCH)
-  if (!staff || s.student) list.push(SCHEDULE, HISTORY)
-  list.push(MINE)
-  return list
+  if (!s || !s.registered) return [HOME, SCHEDULE, MINE]
+  if (hasStaffRole(s) && !isStudentPreview()) return [HOME, WORKBENCH, MINE]
+  return [HOME, SCHEDULE, HISTORY, MINE]
 }
 
 Component({

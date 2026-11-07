@@ -18,10 +18,12 @@ Page({
     userId: '',
     form: { name: '', avatar: '', wxid: '', phone: '', gender: '', birthday: '', emergencyContact: '', bio: '' },
     newAvatarTmp: '',
+    needPrivacy: false,
     busy: false,
   },
 
   async onLoad() {
+    this.checkPrivacy()
     const s = await login().catch(() => null)
     if (!s) return
     const p = await call<any>('profile.get').catch(() => null)
@@ -57,6 +59,17 @@ Page({
 
   onBirthday(e: WechatMiniprogram.PickerChange) {
     this.setData({ 'form.birthday': e.detail.value as string })
+  },
+
+  /** 小程序启用了隐私保护检查：未同意隐私指引时 chooseAvatar 会被静默拦截 */
+  checkPrivacy() {
+    const w = wx as any
+    if (typeof w.getPrivacySetting !== 'function') return
+    w.getPrivacySetting({ success: (r: any) => this.setData({ needPrivacy: !!r.needAuthorization }) })
+  },
+
+  onPrivacyAgree() {
+    this.setData({ needPrivacy: false })
   },
 
   onAvatar(e: any) {

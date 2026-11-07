@@ -110,6 +110,12 @@ async function buildContext(store, openid, opts) {
       const att = await store.find('attendance', { studentId, teacherId: ctx.teacher._id }, { limit: 1 });
       if (att.length) return;
       const rosters = await store.find('attendanceRosters', { studentIds: { $contains: studentId } });
+      const stu = await store.get('students', studentId);
+      for (const g of (stu && stu.status === 'active' && stu.groups) || []) {
+        (await store.find('attendanceRosters', { groups: { $contains: g } })).forEach((r) => rosters.push(r));
+      }
+      const bookings = await store.find('classBookings', { studentId, teacherId: ctx.teacher._id }, { limit: 1 });
+      if (bookings.length) return;
       for (const r of rosters) {
         const ref = r.classId ? await store.get('classes', r.classId) : null;
         if (ref && ref.teacherId === ctx.teacher._id) return;

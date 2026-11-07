@@ -1,10 +1,9 @@
 'use strict';
 /**
  * 员工与角色管理（多角色模型，不使用邀请码）。
- * 流程：用户用微信登录并注册 → 店主/管理员在「员工管理」搜索该用户 → 授予教师/管理员/店主角色。
- * 层级规则：
- *  - 授予/撤销教师：teacher.manage（管理员、店主）
- *  - 授予/撤销管理员：admin.manage（仅店主）
+ * 流程：用户用微信登录并注册（自动获得学员身份）→ 店主在「员工管理」搜索该用户 → 授予教师/店主角色。
+ * 层级规则（角色仅 owner / teacher / student）：
+ *  - 授予/撤销教师：teacher.manage（仅店主，教师不可被配置该权限）
  *  - 授予/撤销店主：owner.manage（仅店主），且不能撤销最后一位店主
  *  - 任何人不能修改自己的角色；唯一例外：店主可为自己开通/关闭教师身份（店主本身拥有全部权限，不构成提权）
  * 撤销教师角色只停用教师档案，历史课程与签到记录全部保留。
@@ -15,7 +14,7 @@ const { v, escapeRegex } = require('../lib/validate');
 const { P, ALL, FORBIDDEN_FOR_ROLE } = require('../lib/permissions');
 const { rolesOf, roleFields, labelOf, ROLE_LABEL, STAFF_ROLES } = require('../lib/roles');
 
-const PERM_FOR_ROLE = { teacher: P.TEACHER_MANAGE, admin: P.ADMIN_MANAGE, owner: P.OWNER_MANAGE };
+const PERM_FOR_ROLE = { teacher: P.TEACHER_MANAGE, owner: P.OWNER_MANAGE };
 /** 教师档案主键由用户 ID 确定性生成：同一用户永远只有一份教师档案 */
 const teacherIdFor = (userId) => `tch_${userId}`;
 
@@ -82,8 +81,10 @@ async function changeRole(ctx, target, role, grant, reason) {
       if (grant) {
         if (t) await tx.update('teachers', tid, { status: 'active', name: t.name || u.name, updatedAt: ts });
         else {
+          const stu = u.studentId ? await tx.get('students', u.studentId) : null;
           await tx.create('teachers', {
-            _id: tid, userId: u._id, name: u.name, avatar: '', bio: '', status: 'active', extraPermissions: [], createdAt: ts, updatedAt: ts,
+            _id: tid, userId: u._id, name: u.name, avatar: (stu && stu.avatar) || '', bio: '', intro: '', styles: [], experience: '', photos: [],
+            sort: 100, status: 'active', extraPermissions: [], createdAt: ts, updatedAt: ts,
           });
         }
         patch.teacherId = tid;
@@ -105,7 +106,7 @@ async function changeRole(ctx, target, role, grant, reason) {
 module.exports = {
   /** 按姓名或微信号搜索已注册用户（用于授予员工角色） */
   async 'staff.searchUsers'(ctx, data) {
-    ctx.requireAny(P.TEACHER_MANAGE, P.ADMIN_MANAGE, P.OWNER_MANAGE);
+    ctx.requireAny(P.TEACHER_MANAGE, P.OWNER_MANAGE);
     const keyword = v.str(data.keyword, '关键词', { max: 30 });
     const re = escapeRegex(keyword);
     const users = await ctx.store.find('users', {
@@ -118,11 +119,12 @@ module.exports = {
   },
 
   async 'staff.list'(ctx) {
-    ctx.requireAny(P.TEACHER_MANAGE, P.ADMIN_MANAGE, P.OWNER_MANAGE);
-    const users = await ctx.store.find('users', { role: { $in: STAFF_ROLES }, status: { $in: ['active', 'suspended'] } });
+    ctx.requireAny(P.TEACHER_MANAGE, P.OWNER_MANAGE);
+    const users = (await ctx.store.find('users', { role: { $in: STAFF_ROLES }, status: { $in: ['active', 'suspended'] } }))
+      .filter((u) => rolesOf(u).some((r) => STAFF_ROLES.includes(r)));
     const tMap = await teacherMap(ctx.store, users);
     const items = users.map((u) => userView(ctx, u, tMap));
-    const rank = (x) => ['owner', 'admin', 'teacher'].indexOf(x.roles[0]);
+    const rank = (x) => STAFF_ROLES.indexOf(x.roles[0]);
     items.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'zh-CN'));
     return items;
   },
@@ -145,6 +147,29 @@ module.exports = {
       throw E.rule('LAST_OWNER', '不能移除最后一位店主');
     }
     return changeRole(ctx, target, role, false, v.str(data.reason, '原因', { optional: true, max: 200 }));
+  },
+
+  /**
+   * 旧版 admin 账号迁移清单（仅店主查看）。
+   * system.migrate 不会自动把 admin 升级为店主；无法明确归属的账号列在此处，由店主人工决定是否授予店主/教师。
+   */
+  async 'staff.legacyAdmins'(ctx) {
+    ctx.require(P.OWNER_MANAGE);
+    const users = await ctx.store.find('users', { legacyAdminPending: true });
+    return users.map((u) => ({
+      userId: u._id, name: u.name || '', wxid: u.wxid || '', status: u.status, roles: rolesOf(u),
+      legacyRoles: u.legacyRoles || [], migratedAt: u.legacyAdminMigratedAt || null,
+    }));
+  },
+
+  /** 店主处理完迁移清单中的某个账号后标记为已处理（不改变角色；如需授权请使用 staff.grantRole） */
+  async 'staff.resolveLegacyAdmin'(ctx, data) {
+    ctx.require(P.OWNER_MANAGE);
+    const u = await ctx.store.get('users', v.id(data.userId, '用户'));
+    if (!u || !u.legacyAdminPending) throw E.notFound('待处理的迁移账号');
+    await ctx.store.update('users', u._id, { legacyAdminPending: false, updatedAt: time.now() });
+    await ctx.audit('role.legacyAdmin.resolve', 'user', u._id, { legacyAdminPending: true }, { legacyAdminPending: false, roles: rolesOf(u) }, v.str(data.reason, '原因', { optional: true, max: 200 }) || '');
+    return { resolved: true };
   },
 
   /** 为个别教师授予额外权限（如查看全部课程），仅店主 */

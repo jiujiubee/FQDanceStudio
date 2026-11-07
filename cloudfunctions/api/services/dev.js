@@ -14,14 +14,13 @@ const { roleFields, labelOf, rolesOf } = require('../lib/roles');
 const SIM_PREFIX = 'devsim:';
 const COLLECTIONS = [
   'users', 'teachers', 'students', 'classes', 'classSeries', 'attendance', 'attendanceRosters',
-  'memberships', 'transactions', 'rolePermissions', 'auditLogs', 'systemSettings', 'staffInvites',
+  'memberships', 'transactions', 'rolePermissions', 'auditLogs', 'systemSettings', 'staffInvites', 'classBookings',
 ];
 
 /** 预置测试账户 */
 const TEST_ACCOUNTS = [
   { key: 'owner', name: '测试店主', roles: ['owner', 'teacher'] },
-  { key: 'admin', name: '测试管理员', roles: ['admin'] },
-  { key: 'teacher', name: '测试教师', roles: ['teacher'] },
+  { key: 'teacher', name: '测试教师', roles: ['teacher', 'student'] },
   { key: 'teacher2', name: '测试教师二', roles: ['teacher'] },
   { key: 'student', name: '测试学员', roles: ['student'], credits: 10 },
   { key: 'student2', name: '测试学员二', roles: ['student'], credits: 0 },
@@ -72,7 +71,7 @@ async function seed(ctx) {
     if (a.roles.includes('student')) {
       user.studentId = `stu_${userId}`;
       await ctx.store.create('students', {
-        _id: user.studentId, userId, studentNo: `T${a.key.toUpperCase()}`, name: a.name, phone: '', wxid: user.wxid, avatar: '', gender: '',
+        _id: user.studentId, userId, name: a.name,
         birthday: '', emergencyContact: '', remark: '测试数据', groups: ['测试'], status: 'active',
         membershipSummary: a.credits
           ? { type: 'CLASS_PASS', label: `次卡 剩余${a.credits}次`, remainingCredits: a.credits, expireDate: time.addDays(today, 90), status: 'active' }
