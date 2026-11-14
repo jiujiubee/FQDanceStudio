@@ -1,5 +1,6 @@
 import { call, callWithToast, toastError } from '../../../utils/api'
 import { can, ensureRegistered } from '../../../utils/session'
+import { uploadWithThumb, POSTER_THUMB_WIDTH, AVATAR_THUMB_WIDTH } from '../../../utils/image'
 
 function splitList(s: string): string[] {
   return s.split(/[,，、\n]/).map((x) => x.trim()).filter(Boolean)
@@ -33,7 +34,7 @@ Page({
     userId: '',
     canStudio: false,
     canTeacher: false,
-    s: { studioName: '', posters: [] as string[], intro: '', features: '', about: '', address: '', phone: '', logo: '', businessHours: '', latitude: null as number | null, longitude: null as number | null },
+    s: { studioName: '', posters: [] as string[], thumbs: {} as Record<string, string>, intro: '', features: '', about: '', address: '', phone: '', logo: '', businessHours: '', latitude: null as number | null, longitude: null as number | null },
     teachers: [] as any[],
     editing: null as any,
     busy: false,
@@ -54,7 +55,7 @@ Page({
         loading: false,
         teachers,
         s: {
-          studioName: h.studioName || '', posters: h.posters || [], intro: h.intro || '', features: (h.features || []).join('、'),
+          studioName: h.studioName || '', posters: h.posters || [], thumbs: h.thumbs || {}, intro: h.intro || '',
           about: h.about || '', address: h.address || '', phone: h.phone || '',
           logo: h.logo || '', businessHours: h.businessHours || '', latitude: h.latitude, longitude: h.longitude,
         },
@@ -82,8 +83,13 @@ Page({
     }
     wx.showLoading({ title: '上传中', mask: true })
     const ids: string[] = []
+    const thumbs = { ...this.data.s.thumbs }
     try {
-      for (const f of files) ids.push(await upload(this.data.userId, f))
+      for (const f of files) {
+        const r = await uploadWithThumb(this.data.userId, f, POSTER_THUMB_WIDTH)
+        ids.push(r.fileID)
+        if (r.thumb) thumbs[r.fileID] = r.thumb
+      }
     } catch (e) {
       wx.hideLoading()
       showUploadError(e)
@@ -91,7 +97,7 @@ Page({
     }
     wx.hideLoading()
     const prev = this.data.s.posters
-    this.setData({ 's.posters': prev.concat(ids) })
+    this.setData({ 's.posters': prev.concat(ids), 's.thumbs': thumbs })
     if (!(await this.persistPosters())) this.setData({ 's.posters': prev })
   },
 
@@ -118,7 +124,7 @@ Page({
   studioPayload() {
     const s = this.data.s
     return {
-      studioName: s.studioName.trim(), posters: s.posters, intro: s.intro, features: splitList(s.features),
+      studioName: s.studioName.trim(), posters: s.posters, thumbs: s.thumbs, intro: s.intro,
       about: s.about, address: s.address, phone: s.phone,
       logo: s.logo, businessHours: s.businessHours, latitude: s.latitude, longitude: s.longitude,
     }
@@ -149,7 +155,9 @@ Page({
     wx.showLoading({ title: '上传中', mask: true })
     let id: string
     try {
-      id = await upload(this.data.userId, f)
+      const r = await uploadWithThumb(this.data.userId, f, POSTER_THUMB_WIDTH)
+      id = r.fileID
+      if (r.thumb) this.setData({ 's.thumbs': { ...this.data.s.thumbs, [id]: r.thumb } })
     } catch (err) {
       wx.hideLoading()
       showUploadError(err)
@@ -177,7 +185,8 @@ Page({
     }
     wx.showLoading({ title: '上传中', mask: true })
     try {
-      this.setData({ 's.logo': await upload(this.data.userId, f) })
+      const r = await uploadWithThumb(this.data.userId, f, AVATAR_THUMB_WIDTH)
+      this.setData({ 's.logo': r.fileID, 's.thumbs': r.thumb ? { ...this.data.s.thumbs, [r.fileID]: r.thumb } : this.data.s.thumbs })
       wx.hideLoading()
     } catch (err) {
       wx.hideLoading()
@@ -226,7 +235,8 @@ Page({
     try {
       const [f] = await pick(1)
       wx.showLoading({ title: '上传中' })
-      this.setData({ 'editing.avatar': await upload(this.data.userId, f) })
+      const r = await uploadWithThumb(this.data.userId, f, AVATAR_THUMB_WIDTH)
+      this.setData({ 'editing.avatar': r.fileID, 'editing.avatarThumb': r.thumb })
     } catch (e) {
       /* 取消 */
     }
@@ -259,7 +269,7 @@ Page({
     if (!t.name.trim()) { wx.showToast({ title: '请输入姓名', icon: 'none' }); return }
     this.setData({ busy: true })
     const r = await callWithToast('teacher.updateProfile', {
-      teacherId: t._id, name: t.name.trim(), avatar: t.avatar, intro: t.intro, bio: t.bio, experience: t.experience,
+      teacherId: t._id, name: t.name.trim(), avatar: t.avatar, avatarThumb: t.avatarThumb || '', intro: t.intro,
       styles: splitList(t.styles), photos: t.photos, sort: parseInt(t.sort, 10) || 0,
     }, '保存中')
     this.setData({ busy: false })

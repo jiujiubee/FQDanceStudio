@@ -72,6 +72,7 @@ test('A2. 学生端无签到入口：接口不存在、课程卡片无签到按�
 
 test('A3/A4/A5. 30分钟取消规则、返还课时、不重复扣课/退款、释放名额', async () => {
   const env = await setup();
+  await env.ok('owner-openid', 'settings.update', { booking: { bookingCancellationCutoffMinutes: 30 } });
   await env.givePass(env.studentId, 5);
   const ok = await env.createClass({ startTime: '10:31', capacity: 1 });
   const late = await env.createClass({ startTime: '10:30' });

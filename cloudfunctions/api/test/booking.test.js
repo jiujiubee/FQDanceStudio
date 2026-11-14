@@ -31,6 +31,7 @@ test('B1. 预约只占名额不扣课时；签到后扣课时；重复预约被�
 
 test('B1b. 开课前超过30分钟取消：退还课时并生成流水；不重复退款；不计入上课记录', async () => {
   const env = await setup();
+  await env.ok('owner-openid', 'settings.update', { booking: { bookingCancellationCutoffMinutes: 30 } });
   await env.givePass(env.studentId, 5);
   const c = await env.createClass({ startTime: '10:31' });
   const classId = c.classes[0]._id;
@@ -101,6 +102,34 @@ test('B4. 开课前取消截止；课程开始后不能预约', async () => {
   env.setNow(DEFAULT_NOW + 65 * 60000);
   const started = await raw(env, 'student2-openid', 'booking.create', { classId });
   assert.equal(started.code, 'CLASS_STARTED');
+});
+
+test('B4b. 取消截止时间可配置：默认 60 分钟，修改后立即生效并可重新读取', async () => {
+  const env = await setup();
+  await env.givePass(env.studentId, 5);
+  const st = await env.ok('owner-openid', 'settings.get', {});
+  assert.equal(st.booking.bookingCancellationCutoffMinutes, 60);
+  assert.equal(st.checkin, undefined);
+  const c = await env.createClass({ startTime: '10:45' });
+  const classId = c.classes[0]._id;
+  await env.ok('student-openid', 'booking.create', { classId });
+  let card = (await env.ok('student-openid', 'schedule.week', {})).classes.find((x) => x._id === classId);
+  assert.equal(card.canCancelBooking, false);
+  const closed = await raw(env, 'student-openid', 'booking.cancel', { classId });
+  assert.equal(closed.code, 'CANCEL_CLOSED', '默认 60 分钟：剩 45 分钟不可取消');
+
+  await env.ok('owner-openid', 'settings.update', { booking: { bookingCancellationCutoffMinutes: 45 } });
+  assert.equal((await env.ok('owner-openid', 'settings.get', {})).booking.bookingCancellationCutoffMinutes, 45);
+  const atCutoff = await raw(env, 'student-openid', 'booking.cancel', { classId });
+  assert.equal(atCutoff.code, 'CANCEL_CLOSED', '到达截止时间禁止取消');
+
+  await env.ok('owner-openid', 'settings.update', { booking: { bookingCancellationCutoffMinutes: 30 } });
+  card = (await env.ok('student-openid', 'schedule.week', {})).classes.find((x) => x._id === classId);
+  assert.equal(card.canCancelBooking, true);
+  await env.ok('student-openid', 'booking.cancel', { classId });
+
+  const bad = await env.call('owner-openid', 'settings.update', { booking: { bookingCancellationCutoffMinutes: -1 } });
+  assert.equal(bad.ok, false);
 });
 
 test('B5. 教师添加未预约学员：自动生成预约、仅扣一次；更正缺勤退款', async () => {

@@ -1,7 +1,4 @@
 {
-  "permissions": {
-    "openapi": ["phonenumber.getPhoneNumber"]
-  },
   "triggers": [
     {
       "name": "dailyMaintenance",

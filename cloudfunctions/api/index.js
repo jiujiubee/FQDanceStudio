@@ -11,29 +11,25 @@ const { createApi } = require('./app');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 /**
- * 外部能力：
- * - resolveWxPhone：微信官方手机号快速验证（需小程序已开通「手机号快速验证组件」权限，并在 config.json 中声明 phonenumber.getPhoneNumber）
- * - sendSms：短信验证码，需在 lib/sms-provider.js 中接入已备案签名的短信服务商；未接入时短信验证不可用
+ * 外部能力：云存储临时链接与文件删除。
  */
-let smsProvider = null;
-try {
-  smsProvider = require('./lib/sms-provider');
-} catch (e) {
-  smsProvider = null;
-}
 const providers = {
-  async resolveWxPhone(code) {
-    const r = await cloud.openapi.phonenumber.getPhoneNumber({ code });
-    return r && r.phoneInfo;
+  async getTempFileURLs(fileIds) {
+    const r = await cloud.getTempFileURL({ fileList: fileIds });
+    const out = {};
+    for (const f of (r && r.fileList) || []) if (f.status === 0 && f.tempFileURL) out[f.fileID] = f.tempFileURL;
+    return out;
   },
-  sendSms: smsProvider && typeof smsProvider.send === 'function' ? smsProvider.send : null,
+  async deleteFiles(fileIds) {
+    await cloud.deleteFile({ fileList: fileIds });
+  },
 };
 const handle = createApi(createCloudStore(cloud), { providers });
 
 const COLLECTIONS = [
   'users', 'teachers', 'students', 'classes', 'classSeries', 'attendance', 'attendanceRosters',
   'memberships', 'transactions', 'rolePermissions', 'auditLogs', 'systemSettings', 'staffInvites',
-    'phoneIndex', 'phoneVerifications', 'classBookings',
+    'phoneIndex', 'classBookings',
 ];
 let ready = null;
 // 首次调用时自动创建集合（已存在则忽略），无需在控制台手动建表

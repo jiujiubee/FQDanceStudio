@@ -4,7 +4,7 @@
  * - 身份：OpenID 由云开发运行时注入（getWXContext），是唯一可信身份；无需 AppSecret。
  * - 登录：首次调用 auth.login 时为该 OpenID 创建账户（尚未注册、无任何权限）；
  *   同一微信永远只对应一个账户，角色（roles 数组）挂在该账户上。
- * - 注册：所有用户统一走学员注册（姓名必填，手机号/微信号/头像选填，不做短信验证），注册成功即创建关联的学员档案并获得 student 角色。
+ （姓名必填，微信号/头像选填，注册不收集、不验证手机号）
  * - 教师：不再有独立的教师注册/邀请码。店主在「学员管理 → 学员详情」中直接「设为老师」。
  * - 自愈：历史上通过旧版「员工注册」完成注册但没有学员档案的账户，登录时自动补建学员档案。
  * - 首位店主：仅能由部署者在云开发控制台以服务端方式执行一次初始化（见 services/system.js）。
@@ -14,7 +14,6 @@ const { E } = require('../lib/errors');
 const { v } = require('../lib/validate');
 const views = require('../lib/views');
 const { hasLegacyAdmin, roleFields, labelOf, isStaff } = require('../lib/roles');
-const phone = require('../lib/phone');
 const { buildContext } = require('../lib/context');
 
 const EMPTY_SUMMARY = { type: 'none', label: '未开卡', remainingCredits: 0, expireDate: '', status: 'none' };
@@ -120,7 +119,8 @@ module.exports = {
   },
 
   /**
-   * 学员自助注册：获得 student 角色。姓名必填；手机号为选填资料，不依赖短信或手机号验证。
+   * 学员自助注册：仅依赖 OpenID；姓名必填，微信号/头像选填。注册不收集、不校验手机号，
+   * 手机号作为学员资料中的选填项，由学员在个人资料或店主在学员管理中手动填写。
    * 学员档案主键为 stu_<userId>，与 OpenID 派生的账户一一对应，保证不会重复创建。
    */
   async 'auth.registerStudent'(ctx, data) {
@@ -130,8 +130,6 @@ module.exports = {
     const wxid = v.str(data.wxid, '微信号', { optional: true, max: 40, pattern: /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/ });
     const avatar = v.str(data.avatar, '头像', { optional: true, max: 300, pattern: /^cloud:\/\/[^/]+\/avatars\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i });
     if (avatar && !avatar.includes(`/avatars/${ctx.userId}/`)) throw E.forbidden('头像文件无效');
-    // 手机号为选填资料，不做短信/微信验证，也不参与身份识别（身份只来自 OpenID）
-    const phoneNo = phone.validate(data.phone, { optional: true });
     await ensureAccount(ctx);
     const ts = time.now();
     const userId = ctx.userId;
@@ -140,14 +138,14 @@ module.exports = {
     await ctx.store.transaction(async (tx) => {
       const u = await tx.get('users', userId);
       if (u.studentId) throw E.conflict('ALREADY_REGISTERED', '账户已注册');
-      if (phoneNo) await phone.claim(tx, phoneNo, studentId);
       const existing = await tx.get('students', studentId);
       if (existing && existing.status === 'deleted') throw E.conflict('ALREADY_REGISTERED', '账户已注销，请联系店主');
       if (existing) {
-        await tx.update('students', studentId, { userId, name, phone: phoneNo || existing.phone || '', wxid: wxid || existing.wxid || '', avatar: avatar || existing.avatar || '', updatedAt: ts });
+        // 保留已有手机号等资料，只补充本次提交的字段
+        await tx.update('students', studentId, { userId, name, wxid: wxid || existing.wxid || '', avatar: avatar || existing.avatar || '', updatedAt: ts });
       } else {
         await tx.create('students', {
-          _id: studentId, userId, name, phone: phoneNo, phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '', wxid,
+          _id: studentId, userId, name, phone: '', phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '', wxid,
           avatar, gender: '', birthday: '', emergencyContact: '', remark: '', groups: [], status: 'active',
           membershipSummary: { ...EMPTY_SUMMARY },
           createdAt: ts, updatedAt: ts,

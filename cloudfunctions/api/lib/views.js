@@ -30,7 +30,7 @@ function classView(c) {
     _id: c._id, seriesId: c.seriesId, name: c.name, teacherId: c.teacherId, teacherName: c.teacherName,
     date: c.date, startTime: c.startTime, endTime: c.endTime, duration: c.duration,
     startAt: c.startAt, endAt: c.endAt, capacity: c.capacity || null, bookedCount: c.bookedCount || 0, description: c.description || '',
-    room: c.room || '', level: c.level || 0,
+    room: c.room || '', level: c.level || 0, videoFileId: c.videoFileId || '',
     status: c.status, cancelReason: c.cancelReason || '',
   };
 }

@@ -5,22 +5,28 @@
 	<view class="page-sub">欢迎加入，完成注册后即可查看课程并签到</view>
   </view>
 
+  <view class="av-wrap">
+	<button class="av-btn" open-type="{{needPrivacy ? 'agreePrivacyAuthorization|chooseAvatar' : 'chooseAvatar'}}" bindagreeprivacyauthorization="onPrivacyAgree" bindchooseavatar="onAvatar">
+	  <view class="avatar lg">
+		<image wx:if="{{avatarTmp}}" src="{{avatarTmp}}" mode="aspectFill" />
+		<image wx:else src="/assets/icons/user-muted.svg" class="av-ph" />
+	  </view>
+	</button>
+	<text class="tiny muted">点击选择头像（选填）</text>
+  </view>
+
   <view class="form">
 	<view class="field">
 	  <text class="label">姓名</text>
-	  <input class="control" value="{{name}}" placeholder="必填，请输入真实姓名" placeholder-class="placeholder" maxlength="30" data-k="name" bindinput="onInput" />
+	  <input class="control" type="nickname" value="{{name}}" placeholder="必填，请输入真实姓名" placeholder-class="placeholder" maxlength="30" data-k="name" bindinput="onInput" bindblur="onInput" />
 	</view>
 	<view class="field">
 	  <text class="label">微信号</text>
-	  <input class="control" value="{{wxid}}" placeholder="选填，便于老师联系" placeholder-class="placeholder" maxlength="40" data-k="wxid" bindinput="onInput" />
-	</view>
-	<view class="field">
-	  <text class="label">手机号</text>
-	  <input class="control" type="number" value="{{phone}}" placeholder="选填，便于课程联系" placeholder-class="placeholder" maxlength="11" data-k="phone" bindinput="onInput" />
+	  <input class="control" value="{{wxid}}" placeholder="选填，请手动填写，便于老师联系" placeholder-class="placeholder" maxlength="40" data-k="wxid" bindinput="onInput" />
 	</view>
   </view>
 
-  <view class="hint">手机号为选填项，无需验证码，仅用于课程联系，不会用于其他用途。</view>
+  <view class="hint">头像为选填，拒绝授权也可正常注册；手机号可在注册后于「个人资料」中选填。</view>
   <view class="hint">教师无需单独注册：先完成学员注册，由店主在学员详情中设为老师。</view>
 
   <view class="agree row" bindtap="toggleAgree">

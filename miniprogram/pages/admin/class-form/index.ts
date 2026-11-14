@@ -12,6 +12,11 @@ function countWeekly(start: string, end: string, wds: number[]): number {
   return n
 }
 
+/** 微信 chooseMedia 单个视频上限与 CloudBase 客户端上传建议上限取较小值 */
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024
+const VIDEO_MAX_SECONDS = 60 * 10
+const VIDEO_EXT_RE = /\.(mp4|mov|m4v)$/i
+
 Page({
   data: {
     modes: [
@@ -43,6 +48,10 @@ Page({
     preview: '',
     busy: false,
     reqId: '',
+    userId: '',
+    video: { fileId: '', url: '', localPath: '' },
+    uploading: false,
+    uploadProgress: 0,
   },
 
   async onLoad(q: Record<string, string>) {
@@ -51,6 +60,7 @@ Page({
     this.setData({ reqId: requestId(), today: t0, 'form.date': t0, 'form.startDate': t0, 'form.endDate': addDays(t0, 56) })
     const s = await ensureRegistered()
     if (!s) return
+    this.setData({ userId: s.userId || '' })
     const teachers = await call<any[]>('class.teacherOptions').catch(() => [])
     this.setData({ teachers })
     if (q.date && q.date >= this.data.today) this.setData({ 'form.date': q.date, 'form.startDate': q.date })
@@ -63,6 +73,7 @@ Page({
         editId: q.id,
         teacherIndex: teachers.findIndex((t) => t._id === c.teacherId),
         form: { ...this.data.form, name: c.name, startTime: c.startTime, duration: String(c.duration), capacity: c.capacity ? String(c.capacity) : '', description: c.description, room: c.room || '', level: c.level || 0, date: c.date },
+        video: { fileId: c.videoFileId || '', url: c.videoUrl || '', localPath: '' },
       })
     }
     this.syncEnd()
@@ -140,8 +151,61 @@ Page({
     this.setData({ preview })
   },
 
+  /** 选择并上传课程视频到云存储；只有拿到 cloud:// 文件标识才算成功 */
+  async chooseVideo() {
+    if (this.data.uploading || this.data.busy) return
+    if (!this.data.userId) { wx.showModal({ title: '上传失败', content: '登录状态无效，请重新进入', showCancel: false }); return }
+    let file: WechatMiniprogram.MediaFile
+    try {
+      const r = await wx.chooseMedia({ count: 1, mediaType: ['video'], sourceType: ['album', 'camera'], maxDuration: 60 })
+      file = r.tempFiles[0]
+    } catch (e: any) {
+      if (e && /cancel/i.test(e.errMsg || '')) return
+      wx.showModal({ title: '选择视频失败', content: String((e && e.errMsg) || e), showCancel: false })
+      return
+    }
+    if (!file || !file.tempFilePath) return
+    if (!VIDEO_EXT_RE.test(file.tempFilePath)) { wx.showModal({ title: '格式不支持', content: '仅支持 MP4 / MOV / M4V 视频', showCancel: false }); return }
+    if (file.size > VIDEO_MAX_BYTES) { wx.showModal({ title: '视频过大', content: `视频不能超过 ${VIDEO_MAX_BYTES / 1024 / 1024}MB`, showCancel: false }); return }
+    if (file.duration && file.duration > VIDEO_MAX_SECONDS) { wx.showModal({ title: '视频过长', content: '视频时长不能超过 10 分钟', showCancel: false }); return }
+
+    const ext = (file.tempFilePath.match(VIDEO_EXT_RE) as RegExpMatchArray)[0].toLowerCase()
+    const cloudPath = `class-videos/${this.data.userId}/${Date.now()}_${Math.floor(Math.random() * 1e6)}${ext}`
+    this.setData({ uploading: true, uploadProgress: 0 })
+    try {
+      const fileID = await new Promise<string>((resolve, reject) => {
+        const task = wx.cloud.uploadFile({
+          cloudPath,
+          filePath: file.tempFilePath,
+          success: (r: any) => {
+            if (r && r.fileID && r.fileID.indexOf('cloud://') === 0) resolve(r.fileID)
+            else reject(new Error('云存储未返回文件标识'))
+          },
+          fail: reject,
+        } as any) as any
+        if (task && task.onProgressUpdate) task.onProgressUpdate((p: any) => this.setData({ uploadProgress: p.progress }))
+      })
+      this.setData({ video: { fileId: fileID, url: '', localPath: file.tempFilePath } })
+      wx.showToast({ title: '视频已上传', icon: 'success' })
+    } catch (e: any) {
+      wx.showModal({ title: '视频上传失败', content: String((e && (e.message || e.errMsg)) || '未知错误'), showCancel: false })
+    } finally {
+      this.setData({ uploading: false })
+    }
+  },
+
+  removeVideo() {
+    if (this.data.uploading) return
+    wx.showModal({
+      title: '删除课程视频',
+      content: this.data.editId ? '保存后仅移除本节课的视频，其他课程不受影响。' : '移除后创建的课程将不带视频。',
+      success: (r) => { if (r.confirm) this.setData({ video: { fileId: '', url: '', localPath: '' } }) },
+    })
+  },
+
   async submit() {
     if (this.data.busy) return
+    if (this.data.uploading) { wx.showToast({ title: '视频上传中，请稍候', icon: 'none' }); return }
     const f = this.data.form
     const t = this.data.teachers[this.data.teacherIndex]
     if (!f.name.trim()) { wx.showToast({ title: '请输入课程名称', icon: 'none' }); return }
@@ -160,6 +224,7 @@ Page({
       description: f.description.trim(),
       room: f.room.trim(),
       level: f.level,
+      videoFileId: this.data.video.fileId,
     }
     this.setData({ busy: true })
     let ok: any

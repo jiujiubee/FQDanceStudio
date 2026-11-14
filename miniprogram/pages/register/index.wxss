@@ -5,3 +5,7 @@
 .ck.on { background: var(--c-accent); border-color: var(--c-accent); }
 .ck image { width: 24rpx; height: 24rpx; }
 .links { text-align: center; margin-top: 48rpx; }
+.av-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 24rpx; }
+.av-btn { padding: 0; margin: 0 0 8rpx; background: transparent; line-height: 1; }
+.av-btn::after { border: none; }
+.av-ph { width: 60%; height: 60%; }

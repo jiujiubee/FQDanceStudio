@@ -59,7 +59,7 @@
 - 名额：`classes.bookedCount` 与预约记录在同一事务内更新，并发下不超过 `capacity`（无 capacity 即不限人数）。
 - 学员本人签到必须先预约；教师代签未预约学员时自动补建 `source=teacher` 预约（不受名额限制）。
 - 签到更正为缺勤：退还课时，预约恢复为 booked。课程取消：已签到按策略退课时，预约全部置为 cancelled 并标记 `classCancelled`。
-- 预约记录永不删除；取消后可重新预约（复用同一主键并追加 history）。开课前 `booking.cancelBeforeMinutes` 分钟内不可取消，课程开始后不可预约。已签到且课程已结束对外展示为 completed。
+开课前 `booking.bookingCancellationCutoffMinutes`（默认 60）分钟内不可取消
 
 ## memberships — 会员卡
 `_id, studentId, type(pass/monthly), name, totalCredits, usedCredits, remainingCredits, purchaseDate, startDate, expireDate, status(active/expired/suspended), policy{mode(unlimited/limited), monthlyLimit}, usage{"YYYY-MM": n}, priceCents?(人民币分), createdBy, createdAt, updatedAt`
@@ -74,7 +74,7 @@
 `_id, actorId, actorRole, action, targetType, targetId, before, after, reason, createdAt`
 
 ## systemSettings — 系统设置
-`_id = "global"`，字段见 `cloudfunctions/api/lib/settings-defaults.js`。其中 `studio{posters[], intro, features[], about, address, phone}` 为学生首页资料（店主维护）；`booking{cancelBeforeMinutes}` 为预约规则。
+`booking{bookingCancellationCutoffMinutes}` 为预约规则
 `_id = "bootstrap-lock"`：店主初始化永久锁 `{ ownerUserId, createdAt }`，存在即禁止再次初始化。
 
 ## staffInvites — 已废弃
@@ -87,12 +87,11 @@
 - 余额永远由服务端从数据库读取后计算，不接受客户端传入的余额、角色或用户 ID。
 
 
-## 手机号验证与会员卡类型（v3）
+## 手机号与会员卡类型（v3）
 
-- students：phone（必填，中国大陆手机号）、phoneVerified、phoneVerifiedAt、phoneVerifyMethod（wechat / sms）。管理员录入的号码一律为未验证。
+- students：phone（选填，中国大陆手机号，由学员在个人资料或店主在学员管理中手动填写；注册与登录只依赖 OpenID，不收集、不验证手机号）。phoneVerified / phoneVerifiedAt / phoneVerifyMethod 为历史字段，仅保留旧数据。
 - phoneIndex：_id = ph_<手机号>，studentId；保证手机号唯一。
-- phoneVerifications：_id = pv_<userId>，仅存验证码哈希，5 分钟有效，最多 5 次尝试。
 - memberships.type：CLASS_PASS / MONTHLY / QUARTERLY（旧值 pass / monthly 读取时自动兼容，system.migrate 会转换）。
 - memberships.policy.mode：credits（次卡）/ unlimited / quota（固定次数，使用 totalCredits / usedCredits / remainingCredits）；autoExpireDate 记录自动计算的到期日，expireDate 可由管理员覆盖。
 - 月卡默认 1 个自然月、季卡默认 3 个自然月，到期日含当天（如 2026-11-15 起季卡到期 2027-02-14）。
-- 部署：云函数需开通 phonenumber.getPhoneNumber 权限；短信兜底需提供 cloudfunctions/api/lib/sms-provider.js（导出 sendSms(phone, code)），未配置时短信验证返回「短信验证暂未开通」。升级后在控制台调用 system.migrate。
+- 部署：升级后在控制台调用 system.migrate。

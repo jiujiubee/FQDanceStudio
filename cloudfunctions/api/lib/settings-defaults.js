@@ -1,16 +1,13 @@
 'use strict';
 
+const DEFAULT_BOOKING_CANCELLATION_CUTOFF_MINUTES = 60;
+const MAX_BOOKING_CANCELLATION_CUTOFF_MINUTES = 10080;
+
 const DEFAULT_SETTINGS = {
   studioName: 'FQ Dance Studio',
   timezone: 'Asia/Shanghai',
   currency: 'CNY',
   privacyPolicyVersion: '2024-06-01',
-  checkin: {
-    // 开课前多少分钟开放签到
-    openBeforeMinutes: 60,
-    // 开课后多少分钟仍可签到（不超过下课时间）
-    closeAfterStartMinutes: 30,
-  },
   membership: {
     // 月卡默认策略：unlimited 不限次 / limited 每月限次
     monthlyDefaultMode: 'unlimited',
@@ -37,8 +34,16 @@ const DEFAULT_SETTINGS = {
   },
   booking: {
     // 开课前多少分钟停止取消预约
-    cancelBeforeMinutes: 30,
+    bookingCancellationCutoffMinutes: DEFAULT_BOOKING_CANCELLATION_CUTOFF_MINUTES,
   },
 };
 
-module.exports = { DEFAULT_SETTINGS };
+/** 开课前多少分钟内不可取消预约（唯一取值入口）；配置缺失或非法时使用默认值 */
+function bookingCancellationCutoffMinutes(settings) {
+  const m = settings && settings.booking && settings.booking.bookingCancellationCutoffMinutes;
+  return Number.isInteger(m) && m >= 0 && m <= MAX_BOOKING_CANCELLATION_CUTOFF_MINUTES ? m : DEFAULT_BOOKING_CANCELLATION_CUTOFF_MINUTES;
+}
+
+module.exports = {
+  DEFAULT_SETTINGS, DEFAULT_BOOKING_CANCELLATION_CUTOFF_MINUTES, MAX_BOOKING_CANCELLATION_CUTOFF_MINUTES, bookingCancellationCutoffMinutes,
+};

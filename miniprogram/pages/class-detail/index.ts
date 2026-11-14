@@ -60,7 +60,7 @@ Page({
     try {
       const r = await call<any>(action, { classId: this.data.id })
       // 立即使用后端（数据库确认后）返回的课程状态，避免旧状态回显
-      if (r && r.class) this.setData({ cls: r.class })
+      if (r && r.class) this.setData({ cls: { ...r.class, videoUrl: r.class.videoUrl || (this.data.cls && this.data.cls.videoUrl) || '' } })
       wx.showToast({ title: action === 'booking.cancel' && r && !r.refunded ? '已取消' : done, icon: 'success' })
       login(true).catch(() => null)
       this.setData({ busy: false })
@@ -71,13 +71,17 @@ Page({
     }
   },
 
-  /** 预约即签到，立即扣一次课时；开课前30分钟以上可取消并退还 */
+  /** 预约即签到，立即扣一次课时；取消截止时间由系统设置 bookingCancellationCutoffMinutes 决定 */
   book() {
     this.run('booking.create', '确认预约（将扣一次课时）', '预约', '已预约并扣除课时')
   },
 
   cancelBook() {
     this.run('booking.cancel', '取消预约（退还课时）', '取消预约', '已取消并退还课时')
+  },
+
+  onVideoError() {
+    wx.showToast({ title: '视频加载失败，请下拉刷新', icon: 'none' })
   },
 
   openTeacher() {

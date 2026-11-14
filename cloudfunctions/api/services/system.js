@@ -8,6 +8,8 @@ const rules = require('../lib/membership-rules');
 const phoneLib = require('../lib/phone');
 const { rolesOf, roleFields, hasLegacyAdmin } = require('../lib/roles');
 const { escapeRegex } = require('../lib/validate');
+const { loadSettings } = require('../lib/context');
+const { MAX_BOOKING_CANCELLATION_CUTOFF_MINUTES } = require('../lib/settings-defaults');
 
 const BOOTSTRAP_LOCK = 'bootstrap-lock';
 
@@ -26,16 +28,14 @@ module.exports = {
 
   async 'settings.update'(ctx, data) {
     const patch = {};
-    if (data.studioName !== undefined || data.checkin !== undefined || data.privacyPolicyVersion !== undefined) {
+    if (data.booking !== undefined) {
       ctx.require(P.SETTINGS_MANAGE);
-      if (data.studioName !== undefined) patch.studioName = v.str(data.studioName, '工作室名称', { max: 40 });
-      if (data.privacyPolicyVersion !== undefined) patch.privacyPolicyVersion = v.str(data.privacyPolicyVersion, '隐私政策版本', { max: 20 });
-      if (data.checkin) {
-        patch.checkin = {
-          openBeforeMinutes: v.int(data.checkin.openBeforeMinutes, '提前签到分钟', { min: 0, max: 720 }),
-          closeAfterStartMinutes: v.int(data.checkin.closeAfterStartMinutes, '开课后签到分钟', { min: 0, max: 480 }),
-        };
-      }
+      const b = data.booking || {};
+      const { cancelBeforeMinutes: _legacy, ...rest } = ctx.settings.booking || {};
+      patch.booking = {
+        ...rest,
+        bookingCancellationCutoffMinutes: v.int(b.bookingCancellationCutoffMinutes, '开课前不可取消预约分钟', { min: 0, max: MAX_BOOKING_CANCELLATION_CUTOFF_MINUTES }),
+      };
     }
     if (data.membership !== undefined) {
       ctx.require(P.POLICY_MANAGE);
@@ -53,7 +53,8 @@ module.exports = {
     const before = await ctx.store.get('systemSettings', 'global');
     await ctx.store.set('systemSettings', 'global', { ...(before || {}), ...patch, _id: 'global', updatedBy: ctx.user._id, updatedAt: time.now() });
     await ctx.audit('settings.update', 'systemSettings', 'global', before || null, patch, '');
-    return { updated: true };
+    const after = await loadSettings(ctx.store);
+    return { updated: true, settings: after };
   },
 
   async 'permissions.get'(ctx) {

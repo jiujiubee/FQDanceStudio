@@ -2,9 +2,11 @@
   <loading-skeleton wx:if="{{loading}}" count="3" />
   <block wx:elif="{{home}}">
 	<!-- A. 海报轮播 -->
-	<swiper wx:if="{{home.posters.length}}" class="posters" indicator-dots autoplay circular>
-	  <swiper-item wx:for="{{home.posters}}" wx:key="*this">
-		<image class="poster" src="{{item}}" mode="aspectFill" />
+	<swiper wx:if="{{posters.length}}" class="posters" style="height: {{posterHeight ? posterHeight + 'px' : '360rpx'}}" indicator-dots autoplay circular bindchange="onSwiper">
+	  <swiper-item wx:for="{{posters}}" wx:key="key" class="poster-item">
+		<view wx:if="{{!item.loaded}}" class="poster-ph"></view>
+		<image wx:if="{{item.failed}}" class="poster-fallback" src="{{defaultImage}}" mode="aspectFit" />
+		<image wx:elif="{{item.src}}" class="poster" src="{{item.src}}" mode="aspectFit" data-i="{{index}}" bindload="onPosterLoad" binderror="onPosterError" />
 	  </swiper-item>
 	</swiper>
 
@@ -14,7 +16,7 @@
 	  <view wx:if="{{!home.teachers.length}}" class="small muted">暂无导师信息</view>
 	  <scroll-view wx:else scroll-x class="stars">
 		<view wx:for="{{home.teachers}}" wx:key="_id" class="star-t" data-id="{{item._id}}" bindtap="openTeacher">
-		  <image class="avatar" src="{{item.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		  <image class="avatar" src="{{item.avatarSrc || '/assets/icons/user-muted.svg'}}" mode="aspectFill" lazy-load data-i="{{index}}" binderror="onAvatarError" />
 		  <view class="small bold ellipsis">{{item.name}}</view>
 		</view>
 	  </scroll-view>
@@ -24,7 +26,7 @@
 	<view class="card mt">
 	  <view class="section-title">关于我们</view>
 	  <view class="row">
-		<image wx:if="{{home.logo}}" class="avatar" src="{{home.logo}}" mode="aspectFill" />
+		<image wx:if="{{home.logo}}" class="avatar" src="{{logoSrc || '/assets/icons/user-muted.svg'}}" mode="aspectFill" binderror="onLogoError" />
 		<view class="grow">
 		  <view class="bold">{{home.studioName}}</view>
 		  <view wx:if="{{home.intro}}" class="tiny grey">{{home.intro}}</view>

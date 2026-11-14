@@ -8,12 +8,10 @@ const { P } = require('../lib/permissions');
 const rules = require('../lib/membership-rules');
 const core = require('../lib/attendance-core');
 const bk = require('../lib/booking-core');
+const { bookingCancellationCutoffMinutes } = require('../lib/settings-defaults');
+const { videoUrl } = require('../lib/class-video');
 
 const MAX_FUTURE_WEEKS = 26;
-const bookingCancelMs = (ctx) => {
-  const m = ctx.settings.booking && ctx.settings.booking.cancelBeforeMinutes;
-  return (typeof m === 'number' && m >= 0 ? m : 30) * 60000;
-};
 const AVATAR_LIMIT = 5;
 const ACTIVE_CANCELABLE = ['booked', 'checked_in'];
 
@@ -32,6 +30,8 @@ function phaseOf(c, nowMs) {
 async function decorateClasses(ctx, list, range) {
   const nowMs = time.now();
   if (!list.length) return [];
+  const cutoffMinutes = bookingCancellationCutoffMinutes(ctx.settings);
+  const cancelOpen = (c) => nowMs < c.startAt - cutoffMinutes * 60000;
   const classIds = list.map((c) => c._id);
   const avatarLimit = range.avatarLimit || AVATAR_LIMIT;
 
@@ -66,7 +66,6 @@ async function decorateClasses(ctx, list, range) {
     const a = attMap.get(c._id);
     const b = bookMap.get(c._id);
     const booked = !!b && b.status === 'booked';
-    const w = core.checkInWindow(c, ctx.settings);
     const classBooks = byClass.get(c._id) || [];
     const bookedCount = classBooks.length;
     const remaining = c.capacity ? Math.max(0, c.capacity - bookedCount) : null;
@@ -83,14 +82,14 @@ async function decorateClasses(ctx, list, range) {
     } else if (a && a.status === 'present') {
       state = 'checked_in';
       hint = '已签到';
-      canCancelBooking = !!b && ACTIVE_CANCELABLE.includes(b.status) && nowMs < c.startAt - bookingCancelMs(ctx);
+      canCancelBooking = !!b && ACTIVE_CANCELABLE.includes(b.status) && cancelOpen(c);
     } else if (!student) {
       hint = phase === 'ended' ? '已结束' : '';
     } else {
       const { membership, reason } = rules.pickMembership(memberships, c.date);
       if (booked) {
         state = 'booked';
-        canCancelBooking = nowMs < c.startAt - bookingCancelMs(ctx);
+        canCancelBooking = cancelOpen(c);
         if (!membership) state = ['INSUFFICIENT_CREDITS', 'MONTHLY_LIMIT_REACHED', 'QUOTA_EXHAUSTED'].includes(reason) ? 'insufficient' : 'ineligible';
         if (!membership) hint = reason === 'INSUFFICIENT_CREDITS' ? '课时不足' : rules.REASON_TEXT[reason];
         else if (phase === 'ended') { state = 'ended'; hint = '已结束'; }
@@ -115,6 +114,7 @@ async function decorateClasses(ctx, list, range) {
     const t = tMap.get(c.teacherId);
     return {
       ...base, state, phase, canCheckIn, canBook, canCancelBooking, hint, remaining, bookedCount,
+      bookingCancellationCutoffMinutes: cutoffMinutes,
       teacherAvatar: (t && t.avatar) || '',
       bookedStudents: classBooks.slice(0, avatarLimit).map((x) => {
         const s = sMap.get(x.studentId);
@@ -122,7 +122,7 @@ async function decorateClasses(ctx, list, range) {
         return { id: x.studentId, avatar: (s && s.avatar) || '', initial: name ? name.substring(0, 1) : '?' };
       }),
       bookingStatus: bk.displayStatus(b, c),
-      checkInAt: a && a.status === 'present' ? a.checkInAt : null, checkInOpenAt: w.open,
+      checkInAt: a && a.status === 'present' ? a.checkInAt : null,
     };
   });
 }
@@ -160,6 +160,7 @@ module.exports = {
     const cls = await ctx.store.get('classes', v.id(data.classId, '课程'));
     if (!cls) throw E.notFound('课程');
     const [item] = await decorateClasses(ctx, [cls], { from: cls.date, to: cls.date, avatarLimit: 30 });
+    item.videoUrl = cls.status === 'cancelled' ? '' : await videoUrl(ctx, cls.videoFileId);
     return { class: item, serverNow: time.now() };
   },
 
@@ -192,7 +193,7 @@ module.exports = {
     const classId = v.id(data.classId, '课程');
     const r = await core.cancelBookingWithRefund(ctx.store, {
       classId, studentId: student._id, operatorId: ctx.user._id,
-      cutoffMinutes: bookingCancelMs(ctx) / 60000, reason: '学员取消',
+      bookingCancellationCutoffMinutes: bookingCancellationCutoffMinutes(ctx.settings), reason: '学员取消',
     });
     const summary = await rules.refreshSummary(ctx.store, student._id);
     const [item] = await decorateClasses(ctx, [await ctx.store.get('classes', classId)], { from: '0000-00-00', to: '9999-99-99', avatarLimit: 30 });

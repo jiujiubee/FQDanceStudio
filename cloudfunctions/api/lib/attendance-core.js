@@ -8,6 +8,7 @@ const ids = require('./ids');
 const { E, AppError } = require('./errors');
 const rules = require('./membership-rules');
 const booking = require('./booking-core');
+const { bookingCancellationCutoffMinutes } = require('./settings-defaults');
 
 const MAX_RETRY = 5;
 
@@ -29,21 +30,9 @@ async function withRetry(fn) {
   throw last;
 }
 
-/** 签到时间窗口 */
-function checkInWindow(cls, settings) {
-  const open = cls.startAt - settings.checkin.openBeforeMinutes * 60000;
-  const close = Math.min(cls.endAt, cls.startAt + settings.checkin.closeAfterStartMinutes * 60000);
-  return { open, close };
-}
-
-function assertClassCheckable(cls, settings, enforceWindow) {
+function assertClassCheckable(cls) {
   if (!cls) throw E.notFound('课程');
   if (cls.status === 'cancelled') throw E.rule('CLASS_CANCELLED', '课程已取消，无法签到');
-  if (!enforceWindow) return;
-  const nowMs = time.now();
-  const w = checkInWindow(cls, settings);
-  if (nowMs < w.open) throw E.rule('CHECKIN_NOT_OPEN', `签到将于开课前${settings.checkin.openBeforeMinutes}分钟开放`);
-  if (nowMs > w.close) throw E.rule(nowMs >= cls.endAt ? 'CLASS_ENDED' : 'CHECKIN_CLOSED', nowMs >= cls.endAt ? '课程已结束' : '签到已截止');
 }
 
 /**
@@ -58,7 +47,7 @@ async function markPresent(store, opts) {
 
   return withRetry(() => store.transaction(async (tx) => {
     const cls = await tx.get('classes', classId);
-    assertClassCheckable(cls, settings, enforceWindow);
+    assertClassCheckable(cls);
     if (requireNotStarted && time.now() >= cls.startAt) throw E.rule('CLASS_STARTED', '课程已开始或已结束，不能预约');
 
     const student = await tx.get('students', studentId);
@@ -144,13 +133,14 @@ async function markAbsent(store, opts) {
  * 出勤状态由 present 变为 cancelled 后不会再次退款，保证退款幂等。
  */
 async function cancelBookingWithRefund(store, opts) {
-  const { classId, studentId, operatorId, cutoffMinutes, reason } = opts;
+  const { classId, studentId, operatorId, reason } = opts;
+  const cutoff = bookingCancellationCutoffMinutes({ booking: { bookingCancellationCutoffMinutes: opts.bookingCancellationCutoffMinutes } });
   const attId = ids.attendanceId(classId, studentId);
   const r = await withRetry(() => store.transaction(async (tx) => {
     const cls = await tx.get('classes', classId);
     if (!cls) throw E.notFound('课程');
-    if (time.now() >= cls.startAt - (cutoffMinutes || 0) * 60000) {
-      throw E.rule('CANCEL_CLOSED', `开课前${cutoffMinutes}分钟内不能取消预约`);
+    if (time.now() >= cls.startAt - cutoff * 60000) {
+      throw E.rule('CANCEL_CLOSED', `开课前 ${cutoff} 分钟内不可取消`);
     }
     const res = await booking.cancelBooking(tx, cls, studentId, operatorId, reason);
     const att = await tx.get('attendance', attId);
@@ -204,4 +194,4 @@ async function cancelClassAttendance(store, cls, operatorId, refund, reason) {
   return { affected: list.length, refunded, bookingsCancelled: bookings.length };
 }
 
-module.exports = { withRetry, checkInWindow, assertClassCheckable, markPresent, markAbsent, cancelBookingWithRefund, cancelClassAttendance };
+module.exports = { withRetry, assertClassCheckable, markPresent, markAbsent, cancelBookingWithRefund, cancelClassAttendance };

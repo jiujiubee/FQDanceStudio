@@ -14,14 +14,10 @@ async function setup(opts) {
   opts = opts || {};
   time.setClock(() => opts.now || DEFAULT_NOW);
   const store = new MemoryStore();
-  const sms = {};
-  const wxPhones = {};
+  const deletedFiles = [];
   const providers = {
-    async sendSms(phone, code) { sms[phone] = code; },
-    async resolveWxPhone(code) {
-      if (!wxPhones[code]) throw new Error('invalid code');
-      return { purePhoneNumber: wxPhones[code], countryCode: '86' };
-    },
+    async getTempFileURLs(list) { const o = {}; for (const f of list) o[f] = `https://tmp.example/${encodeURIComponent(f)}`; return o; },
+    async deleteFiles(list) { deletedFiles.push(...list); },
   };
   const handle = createApi(store, { env: opts.env || { APP_ENV: 'production' }, logger: false, providers });
   const call = async (openid, action, data, extra) => {
@@ -47,7 +43,7 @@ async function setup(opts) {
   };
   const system = (action, data) => handle({ action, data }, null, { internal: true });
   const uid = (openid) => ids.userIdFromOpenid(openid);
-  const env = { store, handle, call, ok, system, uid, sms, wxPhones, setNow: (ms) => time.setClock(() => ms) };
+  const env = { store, handle, call, ok, system, uid, deletedFiles, setNow: (ms) => time.setClock(() => ms) };
   let phoneSeq = 0;
   /** 学员注册（无需手机号验证；手机号为选填资料） */
   env.registerStudent = (openid, data) => ok(openid, 'auth.registerStudent', { agreePrivacy: true, ...data });

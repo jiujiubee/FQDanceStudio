@@ -8,8 +8,34 @@ const views = require('../lib/views');
 const { P } = require('../lib/permissions');
 const core = require('../lib/attendance-core');
 const { resolveRoster } = require('../lib/roster');
+const { videoUrl } = require('../lib/class-video');
 
 const MAX_SESSIONS = 200;
+const VIDEO_RE = /^cloud:\/\/[^/]+\/class-videos\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(mp4|mov|m4v)$/i;
+
+/** 课程视频：空串表示无视频；只接受操作者本人上传目录或该课程原有的视频 */
+function videoFileId(ctx, val, current) {
+  if (val === null || val === '') return '';
+  const s = v.str(val, '课程视频', { max: 300 });
+  if (s === current) return s;
+  if (!VIDEO_RE.test(s) || !s.includes(`/class-videos/${ctx.user._id}/`)) throw E.invalid('课程视频文件无效');
+  return s;
+}
+
+/** 仅当没有任何课程仍引用该视频时才删除云存储文件 */
+async function releaseVideo(ctx, fileId) {
+  if (!fileId) return false;
+  const inUse = await ctx.store.count('classes', { videoFileId: fileId });
+  if (inUse) return false;
+  if (!ctx.providers.deleteFiles) return false;
+  try {
+    await ctx.providers.deleteFiles([fileId]);
+    return true;
+  } catch (e) {
+    console.error('[class.video] delete failed', fileId, e && e.message);
+    return false;
+  }
+}
 
 /** 纯函数：根据排课模式生成日期列表（已去重、排序） */
 function generateDates(mode, data) {
@@ -67,6 +93,7 @@ module.exports = {
     const description = v.str(data.description, '课程简介', { optional: true, max: 500 });
     const room = v.str(data.room, '教室', { optional: true, max: 20 });
     const level = v.int(data.level, '难度', { optional: true, default: 0, min: 0, max: 5 });
+    const video = data.videoFileId !== undefined ? videoFileId(ctx, data.videoFileId, '') : '';
     const requestId = v.str(data.requestId, '请求编号', { max: 64, pattern: /^[A-Za-z0-9_-]{8,64}$/ });
     const dates = generateDates(mode, data);
     if (dates.length > MAX_SESSIONS) throw E.invalid(`单次最多生成${MAX_SESSIONS}节课`);
@@ -101,7 +128,7 @@ module.exports = {
         await ctx.store.create('classes', {
           _id: id, seriesId, name, teacherId: teacher._id, teacherName: teacher.name,
           date, startTime, endTime: t.endTime, duration, startAt: t.startAt, endAt: t.endAt,
-          capacity, description, room, level, status: 'scheduled', createdBy: ctx.user._id, createdAt: ts, updatedAt: ts,
+          capacity, description, room, level, videoFileId: video, status: 'scheduled',
         });
         classIds.push(id);
       } catch (e) {
@@ -156,7 +183,7 @@ module.exports = {
     const own = await ctx.store.get('attendanceRosters', `class_${cls._id}`);
     const seriesRoster = cls.seriesId ? await ctx.store.get('attendanceRosters', `series_${cls.seriesId}`) : null;
     return {
-      class: views.classView(cls),
+      class: { ...views.classView(cls), videoUrl: await videoUrl(ctx, cls.videoFileId) },
       series: series ? { _id: series._id, mode: series.mode, count: series.classIds.length, status: series.status, startDate: series.startDate, endDate: series.endDate, weekdays: series.weekdays } : null,
       roster: roster ? { studentIds: roster.studentIds, count: roster.studentIds.length } : null,
       rosterSource: own ? 'class' : seriesRoster ? 'series' : 'none',
@@ -181,6 +208,10 @@ module.exports = {
     if (data.description !== undefined) patch.description = v.str(data.description, '课程简介', { optional: true, max: 500 });
     if (data.room !== undefined) patch.room = v.str(data.room, '教室', { optional: true, max: 20 });
     if (data.level !== undefined) patch.level = v.int(data.level, '难度', { optional: true, default: 0, min: 0, max: 5 });
+    if (data.videoFileId !== undefined) {
+      const nv = videoFileId(ctx, data.videoFileId, cls.videoFileId || '');
+      if (nv !== (cls.videoFileId || '')) patch.videoFileId = nv;
+    }
     const date = data.date !== undefined ? v.date(data.date, '上课日期') : cls.date;
     const startTime = data.startTime !== undefined ? v.time(data.startTime, '开始时间') : cls.startTime;
     const duration = data.duration !== undefined ? v.int(data.duration, '课程时长', { min: 15, max: 480 }) : cls.duration;
@@ -193,6 +224,8 @@ module.exports = {
     if (!Object.keys(patch).length) return { updated: false };
     patch.updatedAt = time.now();
     await ctx.store.update('classes', cls._id, patch);
+    // 仅修改本节课；旧视频若不再被任何课程引用则从云存储删除
+    if (patch.videoFileId !== undefined && cls.videoFileId) await releaseVideo(ctx, cls.videoFileId);
     if (patch.name || patch.teacherId || patch.date || patch.startTime) {
       const atts = await ctx.store.find('attendance', { classId: cls._id });
       for (const a of atts) {

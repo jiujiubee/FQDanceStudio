@@ -88,6 +88,27 @@ Page({
     this.loadHistory(this.data.historyPage + 1)
   },
 
+  copyField(e: WechatMiniprogram.TouchEvent) {
+    const field = e.currentTarget.dataset.field as string
+    if (field !== 'wxid' && field !== 'phone') return
+    const st = this.data.st as any
+    const value = st && typeof st[field] === 'string' ? st[field].trim() : ''
+    if (!value) return
+    wx.setClipboardData({
+      data: value,
+      success: () => wx.showToast({ title: '已复制', icon: 'success' }),
+      fail: (err) => {
+        const msg = (err && err.errMsg) || ''
+        if (/privacy|auth/i.test(msg)) {
+          wx.showModal({ title: '无法复制', content: '请先同意隐私协议中的剪贴板使用授权后重试。', showCancel: false })
+        } else {
+          wx.showToast({ title: '复制失败', icon: 'none' })
+        }
+        console.error('[copyField]', field, msg)
+      },
+    })
+  },
+
   edit() {
     wx.navigateTo({ url: `/pages/admin/student-form/index?id=${this.data.id}` })
   },

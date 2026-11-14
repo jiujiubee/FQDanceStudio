@@ -134,7 +134,7 @@ test('5. 教师权限限制：不能改课时/会员、只能访问自己的课�
     ['membership.create', { studentId: env.studentId, type: 'pass', credits: 5, requestId: 'abcdefgh123' }],
     ['membership.renew', { membershipId }],
     ['staff.grantRole', { userId: 'u_x', role: 'teacher' }],
-    ['settings.update', { studioName: 'x' }],
+    ['settings.update', { booking: { bookingCancellationCutoffMinutes: 10 } }],
     ['transaction.list', {}],
     ['class.create', { mode: 'single' }],
   ]) {

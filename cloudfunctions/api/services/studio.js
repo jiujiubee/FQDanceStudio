@@ -32,8 +32,20 @@ function coord(val, name, limit) {
   return n;
 }
 
+/** 缩略图映射 { 原图 fileID: 缩略图 fileID }，只保留仍在使用的原图 */
+function thumbMap(ctx, val, originals, cur) {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) return {};
+  const allowed = Object.values(cur || {});
+  const out = {};
+  for (const o of originals) {
+    if (o && val[o]) out[o] = fileId(ctx, val[o], '缩略图', allowed);
+  }
+  return out;
+}
+
 function teacherCard(t) {
-  return { _id: t._id, name: t.name, avatar: t.avatar || '', intro: t.intro || t.bio || '', styles: t.styles || [] };
+  return { _id: t._id, name: t.name, avatar: t.avatar || '', avatarThumb: t.avatarThumb || '',
+    intro: t.intro || t.bio || '', styles: t.styles || [] };
 }
 
 function teacherDetail(t) {
@@ -55,6 +67,7 @@ module.exports = {
     return {
       studioName: ctx.settings.studioName,
       posters: s.posters || [],
+      thumbs: s.thumbs || {},
       intro: s.intro || '',
       features: s.features || [],
       about: s.about || '',
@@ -81,14 +94,16 @@ module.exports = {
     const before = await ctx.store.get('systemSettings', 'global');
     const cur = ctx.settings.studio || {};
     const posters = strList(data.posters, '海报', 6, 300).map((p) => fileId(ctx, p, '海报', cur.posters));
+    const logo = data.logo ? fileId(ctx, data.logo, 'Logo', [cur.logo]) : '';
     const studio = {
       posters,
+      thumbs: thumbMap(ctx, data.thumbs, [...posters, logo], cur.thumbs),
       intro: v.str(data.intro, '简介', { optional: true, max: 500 }),
       features: strList(data.features, '特色课程', 12, 30),
       about: v.str(data.about, '相关介绍', { optional: true, max: 1000 }),
       address: v.str(data.address, '地址', { optional: true, max: 120 }),
       phone: v.str(data.phone, '联系电话', { optional: true, max: 20 }),
-      logo: data.logo ? fileId(ctx, data.logo, 'Logo', [cur.logo]) : '',
+      logo,
       businessHours: v.str(data.businessHours, '营业时间', { optional: true, max: 60 }),
       latitude: coord(data.latitude, '纬度', 90),
       longitude: coord(data.longitude, '经度', 180),
@@ -115,8 +130,9 @@ module.exports = {
     const patch = { updatedAt: time.now() };
     if (data.name !== undefined) patch.name = v.str(data.name, '姓名', { max: 30 });
     if (data.avatar !== undefined) patch.avatar = data.avatar ? fileId(ctx, data.avatar, '头像', [t.avatar]) : '';
+    if (data.avatarThumb !== undefined) patch.avatarThumb = data.avatarThumb ? fileId(ctx, data.avatarThumb, '头像缩略图', [t.avatarThumb]) : '';
     if (data.intro !== undefined) patch.intro = v.str(data.intro, '简短介绍', { optional: true, max: 60 });
-    if (data.bio !== undefined) patch.bio = v.str(data.bio, '个人简介', { optional: true, max: 500 });
+    if (data.bio !== undefined)
     if (data.experience !== undefined) patch.experience = v.str(data.experience, '教学经历', { optional: true, max: 1000 });
     if (data.styles !== undefined) patch.styles = strList(data.styles, '擅长舞种', 10, 20);
     if (data.photos !== undefined) patch.photos = strList(data.photos, '照片', 9, 300).map((p) => fileId(ctx, p, '照片', t.photos));

@@ -1,5 +1,8 @@
-.posters { height: 360rpx; border-radius: 16rpx; overflow: hidden; margin-bottom: 24rpx; }
-.poster { width: 100%; height: 360rpx; }
+.posters { height: 360rpx; border-radius: 16rpx; overflow: hidden; margin-bottom: 24rpx; background: #F5F5F5; }
+.poster-item { position: relative; display: flex; align-items: center; justify-content: center; }
+.poster { position: relative; z-index: 1; width: 100%; height: 100%; display: block; }
+.poster-ph { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, #F0F0F0, #FAFAFA, #F0F0F0); }
+.poster-fallback { width: 120rpx; height: 120rpx; opacity: .5; }
 .teacher { padding: 20rpx 0; border-bottom: 1rpx solid #EEEEEE; }
 .teacher:last-child { border-bottom: none; }
 .teacher .avatar { width: 96rpx; height: 96rpx; border-radius: 50%; margin-right: 20rpx; flex-shrink: 0; }

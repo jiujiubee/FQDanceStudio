@@ -37,7 +37,7 @@ Page({
     canPerm: false,
     busy: false,
     s: {
-      studioName: '', openBefore: '', closeAfter: '', privacyPolicyVersion: '',
+      bookingCancellationCutoffMinutes: '',
       monthlyDefaultMode: 'unlimited', monthlyDefaultLimit: '', passDefaultValidDays: '', passPresetsText: '', refundOnCancel: true,
     },
     roleTabs: [
@@ -58,10 +58,7 @@ Page({
       const m = st.membership || {}
       this.setData({
         s: {
-          studioName: st.studioName,
-          openBefore: String(st.checkin.openBeforeMinutes),
-          closeAfter: String(st.checkin.closeAfterStartMinutes),
-          privacyPolicyVersion: st.privacyPolicyVersion,
+          bookingCancellationCutoffMinutes: String(st.booking.bookingCancellationCutoffMinutes),
           monthlyDefaultMode: m.monthlyDefaultMode,
           monthlyDefaultLimit: String(m.monthlyDefaultLimit),
           passDefaultValidDays: String(m.passDefaultValidDays),
@@ -95,11 +92,13 @@ Page({
     const s = this.data.s
     const payload: Record<string, any> = {}
     if (this.data.canSettings) {
-      Object.assign(payload, {
-        studioName: s.studioName.trim(),
-        privacyPolicyVersion: s.privacyPolicyVersion.trim(),
-        checkin: { openBeforeMinutes: parseInt(s.openBefore, 10) || 0, closeAfterStartMinutes: parseInt(s.closeAfter, 10) || 0 },
-      })
+      const raw = String(s.bookingCancellationCutoffMinutes).trim()
+      const n = Number(raw)
+      if (!/^\d+$/.test(raw) || n > 10080) {
+        wx.showToast({ title: '取消预约时间需为 0-10080 分钟', icon: 'none' })
+        return
+      }
+      payload.booking = { bookingCancellationCutoffMinutes: n }
     }
     if (this.data.canPolicy) {
       payload.membership = {
@@ -111,9 +110,15 @@ Page({
       }
     }
     this.setData({ busy: true })
-    const r = await callWithToast('settings.update', payload, '保存中')
+    const r = await callWithToast<any>('settings.update', payload, '保存中')
     this.setData({ busy: false })
     if (r) {
+      const saved = r.settings && r.settings.booking ? r.settings.booking.bookingCancellationCutoffMinutes : undefined
+      if (payload.booking && saved !== payload.booking.bookingCancellationCutoffMinutes) {
+        wx.showModal({ title: '保存未生效', content: '服务端未保存取消预约时间，请重新部署云函数 api 后重试。', showCancel: false })
+        return
+      }
+      if (typeof saved === 'number') this.setData({ 's.bookingCancellationCutoffMinutes': String(saved) })
       login(true).catch(() => null)
       wx.showToast({ title: '已保存', icon: 'success' })
     }

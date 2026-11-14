@@ -1,25 +1,13 @@
 <view class="container">
   <block wx:if="{{canSettings}}">
-	<view class="section-title">基本设置</view>
+	<view class="section-title">预约规则</view>
 	<view class="form">
 	  <view class="field">
-		<text class="label">工作室名称</text>
-		<input class="control" value="{{s.studioName}}" maxlength="40" data-k="studioName" bindinput="onInput" />
-	  </view>
-	  <view class="field">
-		<text class="label">提前签到</text>
-		<input class="control" type="number" value="{{s.openBefore}}" maxlength="3" data-k="openBefore" bindinput="onInput" /><text class="unit">分钟</text>
-	  </view>
-	  <view class="field">
-		<text class="label">开课后可签</text>
-		<input class="control" type="number" value="{{s.closeAfter}}" maxlength="3" data-k="closeAfter" bindinput="onInput" /><text class="unit">分钟</text>
-	  </view>
-	  <view class="field">
-		<text class="label">隐私政策版本</text>
-		<input class="control" value="{{s.privacyPolicyVersion}}" maxlength="20" data-k="privacyPolicyVersion" bindinput="onInput" />
+		<text class="label grow">开课前多久不可取消预约</text>
+		<input class="control" type="number" value="{{s.bookingCancellationCutoffMinutes}}" maxlength="5" data-k="bookingCancellationCutoffMinutes" bindinput="onInput" /><text class="unit">分钟</text>
 	  </view>
 	</view>
-	<view class="hint">修改隐私政策版本后，用户需重新同意。</view>
+	<view class="hint">开课前不足该时间时，学员无法取消预约。工作室名称请在「首页资料」中修改。</view>
   </block>
 
   <block wx:if="{{canPolicy}}">
@@ -39,11 +27,11 @@
 		<input class="control" type="number" value="{{s.monthlyDefaultLimit}}" maxlength="3" data-k="monthlyDefaultLimit" bindinput="onInput" />
 	  </view>
 	  <view class="field">
-		<text class="label">次卡有效期</text>
+		<text class="label">次卡默认有效期</text>
 		<input class="control" type="number" value="{{s.passDefaultValidDays}}" maxlength="4" data-k="passDefaultValidDays" bindinput="onInput" /><text class="unit">天</text>
 	  </view>
 	  <view class="field">
-		<text class="label">次卡规格</text>
+		<text class="label">次卡默认规格</text>
 		<input class="control" value="{{s.passPresetsText}}" placeholder="如 10 20 30" placeholder-class="placeholder" data-k="passPresetsText" bindinput="onInput" />
 	  </view>
 	  <view class="field">

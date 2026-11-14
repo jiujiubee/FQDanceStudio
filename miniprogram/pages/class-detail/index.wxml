@@ -14,6 +14,10 @@
 	  <view wx:if="{{cls.description}}" class="small grey mt">{{cls.description}}</view>
 	</view>
 
+	<view wx:if="{{cls.videoUrl}}" class="card video-card">
+	  <video class="class-video" src="{{cls.videoUrl}}" object-fit="contain" show-center-play-btn binderror="onVideoError" />
+	</view>
+
 	<view class="card row teacher" bindtap="openTeacher">
 	  <view class="t-av">
 		<image wx:if="{{cls.teacherAvatar}}" src="{{cls.teacherAvatar}}" mode="aspectFill" />
@@ -39,12 +43,12 @@
 	<view wx:if="{{cls.status !== 'cancelled'}}" class="footer-bar">
 	  <block wx:if="{{cls.state === 'checked_in'}}">
 		<button wx:if="{{cls.canCancelBooking}}" class="btn ghost" disabled="{{busy}}" bindtap="cancelBook">取消预约</button>
-		<view wx:else class="center accent">已预约{{cls.phase === 'upcoming' ? ' · 开课前30分钟内不可取消' : ''}}</view>
+		已预约{{cls.phase === 'upcoming' ? ' · 开课前 ' + cls.bookingCancellationCutoffMinutes + ' 分钟内不可取消' : ''}}
 	  </block>
 	  <button wx:elif="{{cls.canBook}}" class="btn" hover-class="btn-hover" disabled="{{busy}}" bindtap="book">预约</button>
 	  <block wx:elif="{{cls.bookingStatus === 'booked' && cls.phase !== 'ended'}}">
 		<button wx:if="{{cls.canCancelBooking}}" class="btn ghost" disabled="{{busy}}" bindtap="cancelBook">取消预约</button>
-		<button wx:else class="btn" disabled>已预约{{cls.hint && cls.hint !== '已预约' ? ' · ' + cls.hint : ''}}</button>
+		<button wx:else class="btn" disabled>已预约{{cls.phase === 'upcoming' ? ' · 开课前 ' + cls.bookingCancellationCutoffMinutes + ' 分钟内不可取消' : (cls.hint && cls.hint !== '已预约' ? ' · ' + cls.hint : '')}}</button>
 	  </block>
 	  <button wx:else class="btn" disabled>{{cls.hint || '不可预约'}}</button>
 	</view>

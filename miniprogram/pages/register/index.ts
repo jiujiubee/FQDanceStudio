@@ -1,6 +1,5 @@
 import { callWithToast } from '../../utils/api'
 import { login } from '../../utils/session'
-import { isValidPhone, normalizePhone } from '../../utils/format'
 
 const SUBMIT_ACTION = 'auth.registerStudent'
 
@@ -9,21 +8,51 @@ Page({
 	studioName: '',
 	name: '',
 	wxid: '',
-	// 手机号为选填资料，无需短信/微信验证
-	phone: '',
+	avatarTmp: '',
+	userId: '',
+	needPrivacy: false,
 	agree: false,
 	busy: false,
 	submitText: '注册',
   },
 
   async onLoad() {
+	this.checkPrivacy()
 	const s = await login().catch(() => null)
 	// 已注册用户（同一 OpenID）直接进入，不重复创建账号
 	if (s && s.registered) {
 	  wx.reLaunch({ url: '/pages/home/index' })
 	  return
 	}
-	if (s) this.setData({ studioName: s.studioName, name: s.name || '' })
+	if (s) this.setData({ studioName: s.studioName, name: s.name || '', userId: s.userId || '' })
+  },
+
+  /** 未同意隐私指引时，按钮先触发同意再执行 chooseAvatar */
+  checkPrivacy() {
+	const w = wx as any
+	if (typeof w.getPrivacySetting !== 'function') return
+	w.getPrivacySetting({ success: (r: any) => this.setData({ needPrivacy: !!r.needAuthorization }) })
+  },
+
+  onPrivacyAgree() {
+	this.setData({ needPrivacy: false })
+  },
+
+  onAvatar(e: any) {
+	const url = e.detail && e.detail.avatarUrl
+	if (url) this.setData({ avatarTmp: url })
+  },
+
+  async uploadAvatar(): Promise<string> {
+	const tmp = this.data.avatarTmp
+	if (!tmp || !this.data.userId) return ''
+	try {
+	  const ext = (tmp.match(/\.(jpg|jpeg|png|webp)$/i) || ['.jpg'])[0].toLowerCase()
+	  const r = await wx.cloud.uploadFile({ cloudPath: `avatars/${this.data.userId}/${Date.now()}${ext}`, filePath: tmp })
+	  return r && r.fileID ? r.fileID : ''
+	} catch (e) {
+	  return ''
+	}
   },
 
   onInput(e: WechatMiniprogram.Input) {
@@ -39,7 +68,7 @@ Page({
   },
 
   async submit() {
-	const { name, wxid, phone, agree } = this.data
+	const { name, wxid, agree } = this.data
 	if (!agree) {
 	  wx.showToast({ title: '请先同意隐私政策', icon: 'none' })
 	  return
@@ -50,13 +79,11 @@ Page({
 	}
 	const payload: Record<string, any> = { agreePrivacy: true, name: name.trim() }
 	if (wxid.trim()) payload.wxid = wxid.trim()
-	const p = normalizePhone(phone)
-	if (p) {
-	  if (!isValidPhone(p)) { wx.showToast({ title: '手机号格式不正确，可留空', icon: 'none' }); return }
-	  payload.phone = p
-	}
 
 	this.setData({ busy: true })
+	// 头像上传失败不阻止注册
+	const avatar = await this.uploadAvatar()
+	if (avatar) payload.avatar = avatar
 	const r = await callWithToast<any>(SUBMIT_ACTION, payload, '提交中')
 	this.setData({ busy: false })
 	if (!r) return

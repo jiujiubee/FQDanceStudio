@@ -15,8 +15,8 @@
 	</view>
 
 	<view class="card info-list">
-	  <view class="kv"><text class="k">微信号</text><text>{{st.wxid || '—'}}</text></view>
-	  <view wx:if="{{full}}" class="kv"><text class="k">手机号</text><text>{{st.phone || '—'}}<text wx:if="{{st.phone}}" class="tag ml {{st.phoneVerified ? 'success' : ''}}">{{st.phoneVerified ? '已验证' : '未验证'}}</text></text></view>
+	  <view class="kv"><text class="k">微信号</text><view class="val"><text selectable>{{st.wxid || '—'}}</text><text wx:if="{{st.wxid}}" class="copy accent" data-field="wxid" catchtap="copyField">复制</text></view></view>
+	  <view wx:if="{{full}}" class="kv"><text class="k">手机号</text><view class="val"><text selectable>{{st.phone || '—'}}</text><text wx:if="{{st.phone}}" class="tag ml {{st.phoneVerified ? 'success' : ''}}">{{st.phoneVerified ? '已验证' : '未验证'}}</text><text wx:if="{{st.phone}}" class="copy accent" data-field="phone" catchtap="copyField">复制</text></view></view>
 	  <view class="kv"><text class="k">紧急联系人</text><text>{{st.emergencyContact || '—'}}</text></view>
 	  <view wx:if="{{full}}" class="kv"><text class="k">分组</text><text>{{st.groups.length ? st.groups.join('、') : '—'}}</text></view>
 	  <view class="kv"><text class="k">备注</text><text>{{st.remark || '—'}}</text></view>

@@ -80,6 +80,30 @@
 	  <input class="control" value="{{form.reason}}" placeholder="选填，记录于操作日志" placeholder-class="placeholder" maxlength="200" data-k="reason" bindinput="onInput" />
 	</view>
   </view>
+
+  <view class="form">
+	<view class="field column">
+	  <view class="row between">
+		<text class="label">课程视频</text>
+		<view wx:if="{{video.fileId && !uploading}}" class="row">
+		  <text class="small accent" bindtap="chooseVideo">更换</text>
+		  <text class="small grey video-del" bindtap="removeVideo">删除</text>
+		</view>
+	  </view>
+	  <view wx:if="{{uploading}}" class="video-uploading">
+		<progress percent="{{uploadProgress}}" stroke-width="4" activeColor="#722F3E" backgroundColor="#E5E5E5" />
+		<text class="small grey">上传中 {{uploadProgress}}%</text>
+	  </view>
+	  <block wx:elif="{{video.fileId}}">
+		<video wx:if="{{video.localPath || video.url}}" class="video-preview" src="{{video.localPath || video.url}}" object-fit="contain" />
+		<view wx:else class="small grey">已关联视频（暂时无法加载预览）</view>
+	  </block>
+	  <view wx:else class="video-empty" bindtap="chooseVideo">
+		<text class="small accent">+ 上传视频</text>
+		<text class="tiny muted">支持 MP4 / MOV，最大 100MB、10 分钟{{editId ? '' : '；批量排课的每节课将共用此视频'}}</text>
+	  </view>
+	</view>
+  </view>
   <view wx:if="{{preview}}" class="hint">{{preview}}</view>
 
   <view class="footer-bar">
