@@ -12,8 +12,8 @@
 
   <view class="form">
 	<view class="field">
-	  <text class="label">姓名</text>
-	  <input class="control" type="nickname" value="{{form.name}}" maxlength="30" data-k="name" bindinput="onInput" />
+	  <text class="label">真实姓名</text>
+	  <input class="control" value="{{form.name}}" placeholder="必填" placeholder-class="placeholder" maxlength="30" data-k="name" bindinput="onInput" />
 	</view>
 	<block wx:if="{{isStudent}}">
 	  <view class="field">

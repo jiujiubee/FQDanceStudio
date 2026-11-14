@@ -4,7 +4,7 @@
  * - 身份：OpenID 由云开发运行时注入（getWXContext），是唯一可信身份；无需 AppSecret。
  * - 登录：首次调用 auth.login 时为该 OpenID 创建账户（尚未注册、无任何权限）；
  *   同一微信永远只对应一个账户，角色（roles 数组）挂在该账户上。
- （姓名必填，微信号/头像选填，注册不收集、不验证手机号）
+ * - 注册：真实姓名、手机号必填（手动填写，不做微信手机号验证）；头像选填，未上传时使用 FQ 默认头像（工作室 Logo）。
  * - 教师：不再有独立的教师注册/邀请码。店主在「学员管理 → 学员详情」中直接「设为老师」。
  * - 自愈：历史上通过旧版「员工注册」完成注册但没有学员档案的账户，登录时自动补建学员档案。
  * - 首位店主：仅能由部署者在云开发控制台以服务端方式执行一次初始化（见 services/system.js）。
@@ -15,6 +15,7 @@ const { v } = require('../lib/validate');
 const views = require('../lib/views');
 const { hasLegacyAdmin, roleFields, labelOf, isStaff } = require('../lib/roles');
 const { buildContext } = require('../lib/context');
+const phoneLib = require('../lib/phone');
 
 const EMPTY_SUMMARY = { type: 'none', label: '未开卡', remainingCredits: 0, expireDate: '', status: 'none' };
 
@@ -94,6 +95,20 @@ async function ensureAccount(ctx) {
   return doc;
 }
 
+/** FQ 默认头像：店主在首页资料中上传的 Logo（cloud:// 换成临时 HTTPS 地址，未注册用户也可显示） */
+async function defaultAvatarUrl(ctx) {
+  const s = (ctx.settings && ctx.settings.studio) || {};
+  const f = (s.thumbs && s.logo && s.thumbs[s.logo]) || s.logo || '';
+  if (!f || f.indexOf('cloud://') !== 0) return f;
+  if (!ctx.providers || !ctx.providers.getTempFileURLs) return '';
+  try {
+    const map = (await ctx.providers.getTempFileURLs([f])) || {};
+    return map[f] || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function addRole(user, role) {
   const roles = Array.isArray(user && user.roles) ? user.roles : [];
   return roleFields([...roles, role]);
@@ -108,7 +123,9 @@ module.exports = {
       const fresh = await buildContext(ctx.store, ctx.openid, { allowSuspended: true });
       return sessionView({ ...fresh, devMode: ctx.devMode, simulated: ctx.simulated });
     }
-    return sessionView(ctx);
+    const view = sessionView(ctx);
+    if (!view.registered) view.defaultAvatar = await defaultAvatarUrl(ctx);
+    return view;
   },
 
   async 'auth.agreePrivacy'(ctx) {
@@ -119,17 +136,19 @@ module.exports = {
   },
 
   /**
-   * 学员自助注册：仅依赖 OpenID；姓名必填，微信号/头像选填。注册不收集、不校验手机号，
-   * 手机号作为学员资料中的选填项，由学员在个人资料或店主在学员管理中手动填写。
+   * 学员自助注册：仅依赖 OpenID；真实姓名、手机号（中国大陆，手动填写）必填，头像选填。
+   * 未上传头像时保存 FQ 默认头像（工作室 Logo 文件标识）。
    * 学员档案主键为 stu_<userId>，与 OpenID 派生的账户一一对应，保证不会重复创建。
    */
   async 'auth.registerStudent'(ctx, data) {
     requireConsent(data);
     if (ctx.student) throw E.conflict('ALREADY_REGISTERED', '账户已注册');
-    const name = v.str(data.name, '姓名', { max: 30 });
-    const wxid = v.str(data.wxid, '微信号', { optional: true, max: 40, pattern: /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/ });
-    const avatar = v.str(data.avatar, '头像', { optional: true, max: 300, pattern: /^cloud:\/\/[^/]+\/avatars\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i });
-    if (avatar && !avatar.includes(`/avatars/${ctx.userId}/`)) throw E.forbidden('头像文件无效');
+    const name = v.str(data.name, '真实姓名', { max: 30 });
+    const phone = phoneLib.validate(data.phone);
+    const uploaded = v.str(data.avatar, '头像', { optional: true, max: 300, pattern: /^cloud:\/\/[^/]+\/avatars\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i });
+    if (uploaded && !uploaded.includes(`/avatars/${ctx.userId}/`)) throw E.forbidden('头像文件无效');
+    const studio = ctx.settings.studio || {};
+    const avatar = uploaded || studio.logo || '';
     await ensureAccount(ctx);
     const ts = time.now();
     const userId = ctx.userId;
@@ -140,19 +159,25 @@ module.exports = {
       if (u.studentId) throw E.conflict('ALREADY_REGISTERED', '账户已注册');
       const existing = await tx.get('students', studentId);
       if (existing && existing.status === 'deleted') throw E.conflict('ALREADY_REGISTERED', '账户已注销，请联系店主');
+      await phoneLib.claim(tx, phone, studentId);
       if (existing) {
-        // 保留已有手机号等资料，只补充本次提交的字段
-        await tx.update('students', studentId, { userId, name, wxid: wxid || existing.wxid || '', avatar: avatar || existing.avatar || '', updatedAt: ts });
+        // 保留历史资料（如微信号），只更新本次提交的字段
+        const patch = { userId, name, phone, avatar: uploaded || existing.avatar || avatar, updatedAt: ts };
+        if (existing.phone !== phone) {
+          Object.assign(patch, { phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '' });
+          await phoneLib.release(tx, existing.phone, studentId);
+        }
+        await tx.update('students', studentId, patch);
       } else {
         await tx.create('students', {
-          _id: studentId, userId, name, phone: '', phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '', wxid,
+          _id: studentId, userId, name, phone, phoneVerified: false, phoneVerifiedAt: null, phoneVerifyMethod: '', wxid: '',
           avatar, gender: '', birthday: '', emergencyContact: '', remark: '', groups: [], status: 'active',
           membershipSummary: { ...EMPTY_SUMMARY },
           createdAt: ts, updatedAt: ts,
         });
       }
       await tx.update('users', userId, {
-        ...addRole(u, 'student'), studentId, name: u.name || name, wxid: u.wxid || wxid,
+        studentId, name,
         privacyAgreedVersion: ctx.settings.privacyPolicyVersion, privacyAgreedAt: ts, updatedAt: ts,
       });
     });

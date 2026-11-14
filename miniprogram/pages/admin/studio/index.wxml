@@ -3,7 +3,7 @@
   <block wx:elif="{{editing}}">
 	<view class="section-title">编辑导师资料</view>
 	<view class="row mb" bindtap="changeAvatar">
-	  <image class="t-avatar" src="{{editing.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+	  <image class="t-avatar" src="{{urls[editing.avatar] || editing.avatarUrl || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
 	  <text class="small accent">更换头像</text>
 	</view>
 	<view class="form">
@@ -18,7 +18,7 @@
 	<textarea class="textarea" value="{{editing.experience}}" maxlength="1000" data-k="experience" bindinput="onTInput" />
 	<view class="small grey mt">照片（最多9张）</view>
 	<view class="imgs">
-	  <view wx:for="{{editing.photos}}" wx:key="*this" class="img"><image src="{{item}}" mode="aspectFill" /><text class="del" data-i="{{index}}" bindtap="removePhoto">×</text></view>
+	  <view wx:for="{{editing.photos}}" wx:key="*this" class="img"><image src="{{urls[item] || '/assets/icons/empty-muted.svg'}}" mode="aspectFill" /><text class="del" data-i="{{index}}" bindtap="removePhoto">×</text></view>
 	  <view wx:if="{{editing.photos.length < 9}}" class="img add" bindtap="addPhoto">+</view>
 	</view>
 	<view class="btn-group mt">
@@ -40,7 +40,7 @@
 	  </view>
 	  <view class="small grey mt">舞蹈室头像 / Logo</view>
 	  <view class="row mb" bindtap="changeLogo">
-		<image class="t-avatar" src="{{s.logo || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		<image class="t-avatar" src="{{logoPreview || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
 		<text class="small accent">更换 Logo（保存后生效）</text>
 	  </view>
 	  <view class="small grey mt">相关介绍</view>
@@ -48,7 +48,7 @@
 	  <view class="small grey mt">首页海报（最多6张；点击预览，← → 调整顺序，“换”更换图片）</view>
 	  <view class="imgs">
 		<view wx:for="{{s.posters}}" wx:key="*this" class="img">
-		  <image src="{{item}}" mode="aspectFill" data-i="{{index}}" bindtap="previewPoster" />
+		  <image src="{{urls[item] || '/assets/icons/empty-muted.svg'}}" mode="aspectFill" data-i="{{index}}" bindtap="previewPoster" />
 		  <text class="del" data-i="{{index}}" bindtap="removePoster">×</text>
 		  <view class="row between tiny">
 			<text data-i="{{index}}" data-d="-1" bindtap="movePoster">←</text>
@@ -66,7 +66,7 @@
 	  <view class="section-title mt">导师资料</view>
 	  <view class="card">
 		<view wx:for="{{teachers}}" wx:key="_id" class="cell" data-id="{{item._id}}" bindtap="editTeacher">
-		  <image class="t-avatar sm" src="{{item.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+		  <image class="t-avatar sm" src="{{item.avatarUrl || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
 		  <view class="grow"><view class="small">{{item.name}}</view><view class="tiny muted ellipsis">{{item.intro || '未填写介绍'}}</view></view>
 		  <image class="arrow" src="/assets/icons/right-muted.svg" />
 		</view>

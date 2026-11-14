@@ -1,5 +1,7 @@
 import { callWithToast } from '../../utils/api'
 import { login } from '../../utils/session'
+import { isValidPhone, normalizePhone } from '../../utils/format'
+import { LOCAL_LOGO } from '../../utils/image'
 
 const SUBMIT_ACTION = 'auth.registerStudent'
 
@@ -7,52 +9,63 @@ Page({
   data: {
 	studioName: '',
 	name: '',
-	wxid: '',
+	phone: '',
+	defaultAvatar: LOCAL_LOGO,
 	avatarTmp: '',
+	avatarFileID: '',
 	userId: '',
-	needPrivacy: false,
 	agree: false,
 	busy: false,
+	uploading: false,
 	submitText: '注册',
   },
 
   async onLoad() {
-	this.checkPrivacy()
-	const s = await login().catch(() => null)
+	const s: any = await login().catch(() => null)
 	// 已注册用户（同一 OpenID）直接进入，不重复创建账号
 	if (s && s.registered) {
 	  wx.reLaunch({ url: '/pages/home/index' })
 	  return
 	}
-	if (s) this.setData({ studioName: s.studioName, name: s.name || '', userId: s.userId || '' })
+	if (s) this.setData({ studioName: s.studioName, userId: s.userId || '', defaultAvatar: s.defaultAvatar || LOCAL_LOGO })
   },
 
-  /** 未同意隐私指引时，按钮先触发同意再执行 chooseAvatar */
-  checkPrivacy() {
-	const w = wx as any
-	if (typeof w.getPrivacySetting !== 'function') return
-	w.getPrivacySetting({ success: (r: any) => this.setData({ needPrivacy: !!r.needAuthorization }) })
+  onDefaultAvatarError() {
+	this.setData({ defaultAvatar: LOCAL_LOGO })
   },
 
-  onPrivacyAgree() {
-	this.setData({ needPrivacy: false })
+  /** 从相册/相机选择图片并立即上传到 CloudBase，成功后替换默认头像 */
+  chooseAvatar() {
+	if (this.data.uploading) return
+	wx.chooseMedia({
+	  count: 1,
+	  mediaType: ['image'],
+	  sizeType: ['compressed'],
+	  success: (r) => {
+		const f = r.tempFiles && r.tempFiles[0]
+		if (f && f.tempFilePath) this.uploadAvatar(f.tempFilePath)
+	  },
+	})
   },
 
-  onAvatar(e: any) {
-	const url = e.detail && e.detail.avatarUrl
-	if (url) this.setData({ avatarTmp: url })
-  },
-
-  async uploadAvatar(): Promise<string> {
-	const tmp = this.data.avatarTmp
-	if (!tmp || !this.data.userId) return ''
+  async uploadAvatar(tmp: string) {
+	if (!this.data.userId) {
+	  wx.showToast({ title: '登录状态无效，请重新进入', icon: 'none' })
+	  return
+	}
+	this.setData({ uploading: true })
+	wx.showLoading({ title: '上传中', mask: true })
 	try {
 	  const ext = (tmp.match(/\.(jpg|jpeg|png|webp)$/i) || ['.jpg'])[0].toLowerCase()
 	  const r = await wx.cloud.uploadFile({ cloudPath: `avatars/${this.data.userId}/${Date.now()}${ext}`, filePath: tmp })
-	  return r && r.fileID ? r.fileID : ''
+	  if (!r || !r.fileID || r.fileID.indexOf('cloud://') !== 0) throw new Error('no fileID')
+	  this.setData({ avatarTmp: tmp, avatarFileID: r.fileID })
+	  wx.hideLoading()
 	} catch (e) {
-	  return ''
+	  wx.hideLoading()
+	  wx.showToast({ title: '头像上传失败，请重试', icon: 'none' })
 	}
+	this.setData({ uploading: false })
   },
 
   onInput(e: WechatMiniprogram.Input) {
@@ -68,22 +81,32 @@ Page({
   },
 
   async submit() {
-	const { name, wxid, agree } = this.data
+	const { name, agree, avatarFileID, uploading } = this.data
+	const phone = normalizePhone(this.data.phone)
 	if (!agree) {
 	  wx.showToast({ title: '请先同意隐私政策', icon: 'none' })
 	  return
 	}
 	if (!name.trim()) {
-	  wx.showToast({ title: '请输入姓名', icon: 'none' })
+	  wx.showToast({ title: '请输入真实姓名', icon: 'none' })
 	  return
 	}
-	const payload: Record<string, any> = { agreePrivacy: true, name: name.trim() }
-	if (wxid.trim()) payload.wxid = wxid.trim()
+	if (!phone) {
+	  wx.showToast({ title: '请输入手机号', icon: 'none' })
+	  return
+	}
+	if (!isValidPhone(phone)) {
+	  wx.showToast({ title: '请输入正确的中国大陆手机号', icon: 'none' })
+	  return
+	}
+	if (uploading) {
+	  wx.showToast({ title: '头像上传中，请稍候', icon: 'none' })
+	  return
+	}
+	const payload: Record<string, any> = { agreePrivacy: true, name: name.trim(), phone }
+	if (avatarFileID) payload.avatar = avatarFileID
 
 	this.setData({ busy: true })
-	// 头像上传失败不阻止注册
-	const avatar = await this.uploadAvatar()
-	if (avatar) payload.avatar = avatar
 	const r = await callWithToast<any>(SUBMIT_ACTION, payload, '提交中')
 	this.setData({ busy: false })
 	if (!r) return

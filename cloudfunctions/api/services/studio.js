@@ -7,6 +7,7 @@ const time = require('../lib/time');
 const { E } = require('../lib/errors');
 const { v } = require('../lib/validate');
 const { P } = require('../lib/permissions');
+const { rolesOf } = require('../lib/roles');
 
 const FILE_RE = /^cloud:\/\/[^/]+\/avatars\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i;
 
@@ -44,7 +45,7 @@ function thumbMap(ctx, val, originals, cur) {
 }
 
 function teacherCard(t) {
-  return { _id: t._id, name: t.name, avatar: t.avatar || '', avatarThumb: t.avatarThumb || '',
+  return { _id: t._id, name: t.name, avatar: t.avatar || '', avatarThumb: t.avatarThumb || '', updatedAt: t.updatedAt || 0,
     intro: t.intro || t.bio || '', styles: t.styles || [] };
 }
 
@@ -59,14 +60,62 @@ async function activeTeachers(store) {
   return list.sort((a, b) => (a.sort === undefined ? 100 : a.sort) - (b.sort === undefined ? 100 : b.sort) || (a.createdAt || 0) - (b.createdAt || 0));
 }
 
+/** 首页明星老师：仅取仍具教师身份的有效 Teacher Profile；资料无头像时回退到关联用户（学员档案）头像 */
+async function homeTeachers(store) {
+  const out = [];
+  for (const t of await activeTeachers(store)) {
+    const u = t.userId ? await store.get('users', t.userId) : null;
+    if (t.userId && (!u || u.status === 'deleted' || !rolesOf(u).includes('teacher'))) continue;
+    const card = teacherCard(t);
+    if (!card.avatar && u && u.studentId) {
+      const stu = await store.get('students', u.studentId);
+      if (stu && stu.avatar) {
+        card.avatar = stu.avatar;
+        card.avatarThumb = '';
+        card.updatedAt = Math.max(card.updatedAt || 0, stu.updatedAt || 0);
+      }
+    }
+    if (card.avatarThumb && !card.avatar) card.avatarThumb = '';
+    out.push(card);
+  }
+  return out;
+}
+
+/** 云函数以管理员身份把 cloud:// fileID 换成 HTTPS 临时地址，任何用户都能显示他人头像，不依赖云存储读权限 */
+async function withUrls(ctx, cards) {
+  const ids = [];
+  for (const c of cards) {
+    for (const f of [c.avatarThumb, c.avatar, ...(c.photos || [])]) if (f && f.indexOf('cloud://') === 0) ids.push(f);
+  }
+  let map = {};
+  if (ids.length && ctx.providers && ctx.providers.getTempFileURLs) {
+    try { map = (await ctx.providers.getTempFileURLs([...new Set(ids)])) || {}; } catch (e) { console.error('[studio] getTempFileURL failed', e && e.message); }
+  }
+  const url = (f) => (f && f.indexOf('cloud://') === 0 ? map[f] || '' : f || '');
+  for (const c of cards) {
+    c.avatarUrl = url(c.avatarThumb) || url(c.avatar);
+    if (c.photos) c.photoUrls = c.photos.map(url).filter(Boolean);
+  }
+  return cards;
+}
+
 module.exports = {
   /** 学生首页数据（任何已注册用户可见） */
   async 'home.get'(ctx) {
     if (!ctx.registered) throw E.notRegistered();
     const s = ctx.settings.studio || {};
+    const logoFile = (s.logo && s.thumbs && s.thumbs[s.logo]) || s.logo || '';
+    const [logoCard] = await withUrls(ctx, [{ avatar: logoFile }]);
+    const posterCard = (await withUrls(ctx, [{ photos: s.posters || [] }]))[0];
+    const posterUrls = {};
+    (s.posters || []).forEach((p) => {
+      const u = (posterCard.photoUrls || [])[(posterCard.photos || []).indexOf(p)];
+      if (u) posterUrls[p] = u;
+    });
     return {
       studioName: ctx.settings.studioName,
       posters: s.posters || [],
+      posterUrls,
       thumbs: s.thumbs || {},
       intro: s.intro || '',
       features: s.features || [],
@@ -74,10 +123,11 @@ module.exports = {
       address: s.address || '',
       phone: s.phone || '',
       logo: s.logo || '',
+      logoUrl: logoCard.avatarUrl || '',
       businessHours: s.businessHours || '',
       latitude: typeof s.latitude === 'number' ? s.latitude : null,
       longitude: typeof s.longitude === 'number' ? s.longitude : null,
-      teachers: (await activeTeachers(ctx.store)).map(teacherCard),
+      teachers: await withUrls(ctx, await homeTeachers(ctx.store)),
     };
   },
 
@@ -85,7 +135,13 @@ module.exports = {
     if (!ctx.registered) throw E.notRegistered();
     const t = await ctx.store.get('teachers', v.id(data.teacherId, '导师'));
     if (!t || t.status !== 'active') throw E.notFound('导师');
-    return teacherDetail(t);
+    const d = teacherDetail(t);
+    if (!d.avatar && t.userId) {
+      const u = await ctx.store.get('users', t.userId);
+      const stu = u && u.studentId ? await ctx.store.get('students', u.studentId) : null;
+      if (stu && stu.avatar) { d.avatar = stu.avatar; d.avatarThumb = ''; }
+    }
+    return (await withUrls(ctx, [d]))[0];
   },
 
   /** 店主更新首页资料 */
@@ -118,7 +174,17 @@ module.exports = {
   /** 店主：导师列表（含资料编辑所需字段） */
   async 'teacher.manageList'(ctx) {
     ctx.require(P.TEACHER_MANAGE);
-    return (await activeTeachers(ctx.store)).map(teacherDetail);
+    const list = [];
+    for (const t of await activeTeachers(ctx.store)) {
+      const d = teacherDetail(t);
+      if (!d.avatar && t.userId) {
+        const u = await ctx.store.get('users', t.userId);
+        const stu = u && u.studentId ? await ctx.store.get('students', u.studentId) : null;
+        if (stu && stu.avatar) { d.avatar = stu.avatar; d.avatarThumb = ''; }
+      }
+      list.push(d);
+    }
+    return withUrls(ctx, list);
   },
 
   /** 店主编辑导师资料（头像、简介、擅长舞种、教学经历、照片） */

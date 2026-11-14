@@ -32,6 +32,11 @@
     "backgroundTextStyle": "dark"
   },
   "requiredPrivateInfos": ["chooseLocation"],
+  "networkTimeout": {
+    "request": 60000,
+    "uploadFile": 600000,
+    "downloadFile": 120000
+  },
   "tabBar": {
     "custom": true,
     "color": "#111111",

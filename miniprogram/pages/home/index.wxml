@@ -5,8 +5,7 @@
 	<swiper wx:if="{{posters.length}}" class="posters" style="height: {{posterHeight ? posterHeight + 'px' : '360rpx'}}" indicator-dots autoplay circular bindchange="onSwiper">
 	  <swiper-item wx:for="{{posters}}" wx:key="key" class="poster-item">
 		<view wx:if="{{!item.loaded}}" class="poster-ph"></view>
-		<image wx:if="{{item.failed}}" class="poster-fallback" src="{{defaultImage}}" mode="aspectFit" />
-		<image wx:elif="{{item.src}}" class="poster" src="{{item.src}}" mode="aspectFit" data-i="{{index}}" bindload="onPosterLoad" binderror="onPosterError" />
+		<image class="poster" src="{{item.src || defaultPoster}}" mode="aspectFit" data-i="{{index}}" bindload="onPosterLoad" binderror="onPosterError" />
 	  </swiper-item>
 	</swiper>
 
@@ -14,10 +13,12 @@
 	<view class="card mt">
 	  <view class="section-title">明星老师</view>
 	  <view wx:if="{{!home.teachers.length}}" class="small muted">暂无导师信息</view>
-	  <scroll-view wx:else scroll-x class="stars">
-		<view wx:for="{{home.teachers}}" wx:key="_id" class="star-t" data-id="{{item._id}}" bindtap="openTeacher">
-		  <image class="avatar" src="{{item.avatarSrc || '/assets/icons/user-muted.svg'}}" mode="aspectFill" lazy-load data-i="{{index}}" binderror="onAvatarError" />
-		  <view class="small bold ellipsis">{{item.name}}</view>
+	  <scroll-view wx:else scroll-x enhanced show-scrollbar="{{false}}" class="stars">
+		<view class="stars-track">
+		  <view wx:for="{{home.teachers}}" wx:key="_id" class="star-t" data-id="{{item._id}}" bindtap="openTeacher">
+			<image class="star-avatar" src="{{item.avatarSrc || defaultAvatar}}" mode="aspectFill" data-i="{{index}}" binderror="onAvatarError" />
+			<view class="star-name">{{item.name}}</view>
+		  </view>
 		</view>
 	  </scroll-view>
 	</view>
@@ -26,7 +27,7 @@
 	<view class="card mt">
 	  <view class="section-title">关于我们</view>
 	  <view class="row">
-		<image wx:if="{{home.logo}}" class="avatar" src="{{logoSrc || '/assets/icons/user-muted.svg'}}" mode="aspectFill" binderror="onLogoError" />
+		<image class="avatar" src="{{logoSrc}}" mode="aspectFill" binderror="onLogoError" />
 		<view class="grow">
 		  <view class="bold">{{home.studioName}}</view>
 		  <view wx:if="{{home.intro}}" class="tiny grey">{{home.intro}}</view>
