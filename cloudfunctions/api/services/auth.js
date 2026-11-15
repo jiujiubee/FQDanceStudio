@@ -177,7 +177,7 @@ module.exports = {
         });
       }
       await tx.update('users', userId, {
-        studentId, name,
+        ...addRole(u, 'student'), studentId, name,
         privacyAgreedVersion: ctx.settings.privacyPolicyVersion, privacyAgreedAt: ts, updatedAt: ts,
       });
     });

@@ -3,6 +3,8 @@
 舞蹈工作室内部管理小程序：学员查看周课表并签到、教师查看与更正出勤、店主排课与管理会员课时。角色仅有 店主（OWNER）/ 教师（TEACHER）/ 学员（STUDENT）三级。
 **不包含**预约、候补、占座等功能。
 
+[![CI](https://github.com/jiujiubee/FQDanceStudio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jiujiubee/FQDanceStudio/actions/workflows/ci.yml)
+
 - 前端：原生微信小程序（WXML / WXSS / TypeScript）
 - 后端：腾讯云开发 CloudBase（中国大陆节点），单一云函数 `api` + 云数据库
 - 时区：Asia/Shanghai；界面全部为简体中文
@@ -25,14 +27,71 @@ database/               集合结构、索引、安全规则
 tests/                  前端单元测试
 tools/icons.js          生成本地 SVG 图标
 docs/DEPLOYMENT.md      部署与上线指南
+.github/workflows/      GitHub Actions CI
 ```
 
 ## 本地开发
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm test          # 后端 + 前端单元测试
 ```
 
 用微信开发者工具「导入项目」选择本目录；按 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) 完成云开发配置。
+
+## Continuous Integration
+
+GitHub Actions runs the CI workflow defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### Triggers
+
+- Pull requests targeting `main`
+- Pushes to `main`
+- Manual runs through the Actions tab (`workflow_dispatch`)
+
+### Pipeline checks
+
+The workflow runs three independent jobs in parallel on GitHub-hosted Ubuntu runners using Node.js 22:
+
+| Job | Command | Purpose |
+| --- | --- | --- |
+| TypeScript typecheck | `npm run typecheck` | Fails on TypeScript compilation/type errors |
+| Backend regression tests | `npm run test:backend` | Runs Node.js tests under `cloudfunctions/api/test/` |
+| Frontend regression tests | `npm run test:frontend` | Runs Node.js tests under `tests/` |
+
+Each job installs locked dependencies with `npm ci`. Test jobs upload their console logs as workflow artifacts, including when tests fail. A non-zero command exit code fails its job. The workflow uses read-only repository contents permissions, job timeouts, npm caching, and concurrency cancellation for superseded runs.
+
+### Run CI locally
+
+From the repository root:
+
+```bash
+npm ci
+npm run typecheck
+npm run test:backend
+npm run test:frontend
+npm test
+```
+
+### Inspect workflow results
+
+1. Open the repository's **Actions** tab.
+2. Select **CI** and open a run associated with a pull request or push.
+3. Inspect the TypeScript, backend, and frontend jobs and their logs.
+4. Download `backend-test-log` or `frontend-test-log` from the run's Artifacts section when available.
+
+### Pull request quality gate
+
+To require CI before merging, configure a branch protection rule or repository ruleset for `main` in GitHub settings. Enable **Require a pull request before merging** and **Require status checks to pass before merging**, then select the exact job checks reported by a successful workflow run:
+
+- `TypeScript typecheck`
+- `Backend regression tests`
+- `Frontend regression tests`
+
+GitHub may display the check names with their workflow context. Select the exact checks shown in the repository UI rather than relying on these labels alone.
+
+### Deployment boundary
+
+This workflow is CI only. It does not deploy CloudBase functions, modify databases, or connect to any CloudBase environment. Production deployment remains a separate, deliberate release operation. A future staging CD workflow should only be added after an isolated non-production CloudBase environment and its credentials have been provisioned as protected GitHub Environment secrets.
+

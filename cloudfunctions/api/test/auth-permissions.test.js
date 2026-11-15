@@ -14,12 +14,15 @@ test('1. 学员自助注册：需同意隐私政策，不可重复注册', async
   assert.equal(again.code, 'ALREADY_REGISTERED');
 });
 
-test('1a. 无需手机号与验证码即可注册：创建 User + Student 并赋予 student 角色', async () => {
+test('1a. 填写姓名与手机号即可注册（无需验证码）：创建 User + Student 并赋予 student 角色', async () => {
   const env = await setup();
-  const r = await env.ok('p-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
+  const missing = await env.call('p-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
+  assert.equal(missing.code, 'INVALID_ARGUMENT');
+  const r = await env.ok('p-openid', 'auth.registerStudent', { name: '甲', phone: '13700000001', agreePrivacy: true });
   const s = await env.store.get('students', r.studentId);
   assert.equal(s.userId, env.uid('p-openid'));
-  assert.equal(s.phone, '');
+  assert.equal(s.phone, '13700000001');
+  assert.equal(s.phoneVerified, false);
   assert.equal(s.status, 'active');
   const u = await env.store.get('users', env.uid('p-openid'));
   assert.equal(u.studentId, r.studentId);
@@ -29,7 +32,7 @@ test('1a. 无需手机号与验证码即可注册：创建 User + Student 并赋
   assert.equal(session.role, 'student');
 });
 
-test('1b. 姓名必填；手机号选填但格式错误时拒绝', async () => {
+test('1b. 姓名与手机号必填；手机号格式错误时拒绝', async () => {
   const env = await setup();
   const noName = await env.call('p-openid', 'auth.registerStudent', { agreePrivacy: true });
   assert.equal(noName.code, 'INVALID_ARGUMENT');
@@ -42,15 +45,15 @@ test('1b. 姓名必填；手机号选填但格式错误时拒绝', async () => {
 
 test('1c. 同一 OpenID 不会重复创建学员档案', async () => {
   const env = await setup();
-  await env.ok('d-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
-  const again = await env.call('d-openid', 'auth.registerStudent', { name: '甲', agreePrivacy: true });
+  await env.registerStudent('d-openid', { name: '甲' });
+  const again = await env.call('d-openid', 'auth.registerStudent', { name: '甲', phone: '13700000002', agreePrivacy: true });
   assert.equal(again.code, 'ALREADY_REGISTERED');
   assert.equal(await env.store.count('students', { userId: env.uid('d-openid') }), 1);
 });
 
-test('1d. 新注册学员（无手机号）出现在店主学员管理列表', async () => {
+test('1d. 新注册学员出现在店主学员管理列表', async () => {
   const env = await setup();
-  const r = await env.ok('n-openid', 'auth.registerStudent', { name: '无号学员', agreePrivacy: true });
+  const r = await env.registerStudent('n-openid', { name: '新学员' });
   const list = await env.ok('owner-openid', 'student.search', { status: 'all', page: 0 });
   assert.ok(list.items.some((x) => x._id === r.studentId));
 });
