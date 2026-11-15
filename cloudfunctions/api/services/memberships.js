@@ -267,7 +267,7 @@ module.exports = {
       items: list.slice(0, 30).map((t) => ({
         _id: t._id, studentId: t.studentId, studentName: sn.get(t.studentId) || '', membershipId: t.membershipId,
         type: t.type, amount: t.amount, previousBalance: t.previousBalance, newBalance: t.newBalance,
-        operatorName: t.operatorId === 'system' ? '系统' : un.get(t.operatorId) || '', reason: t.reason, createdAt: t.createdAt,
+        operatorName: t.operatorId === 'system' ? '系统' : un.get(t.operatorId) || '', reason: t.reason, refType: t.refType || '', refId: t.refId || '', createdAt: t.createdAt,
       })),
       hasMore: list.length > 30,
     };

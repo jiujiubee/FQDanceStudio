@@ -21,9 +21,22 @@ async function setup(opts) {
   };
   const handle = createApi(store, { env: opts.env || { APP_ENV: 'production' }, logger: false, providers });
   const call = async (openid, action, data, extra) => {
-    // 预约制：旧用例中的学员签到默认已预约（预约规则另由 booking.test.js 覆盖）
-    if (action === 'attendance.checkIn' && data && data.classId && !(opts && opts.noAutoBook)) await autoBook(openid, data.classId);
+    // 预约即签到：旧用例中的学员自助签到等价于 booking.create（attendance.checkIn 已移除）
+    if (action === 'attendance.checkIn') return legacyCheckIn(openid, data);
     return handle({ action, data, ...(extra || {}) }, openid);
+  };
+  const legacyCheckIn = async (openid, data) => {
+    const r = await handle({ action: 'booking.create', data }, openid);
+    if (r.ok || r.code !== 'ALREADY_BOOKED') return r;
+    const u = await store.get('users', ids.userIdFromOpenid(openid));
+    const att = await store.get('attendance', ids.attendanceId(data.classId, u.studentId));
+    if (!att || att.status === 'present') return { ok: false, code: 'ALREADY_CHECKED_IN', message: '已签到，请勿重复签到' };
+    // 已有预约但被更正为缺勤：旧语义允许本人重新签到
+    const core = require('../lib/attendance-core');
+    try {
+      const d = await core.markPresent(store, { classId: data.classId, studentId: u.studentId, operatorId: u._id, source: 'self', enforceWindow: false });
+      return { ok: true, data: d };
+    } catch (e) { return { ok: false, code: e.code, message: e.message }; }
   };
   const autoBook = async (openid, classId) => {
     const u = await store.get('users', ids.userIdFromOpenid(openid));
@@ -45,8 +58,11 @@ async function setup(opts) {
   const uid = (openid) => ids.userIdFromOpenid(openid);
   const env = { store, handle, call, ok, system, uid, deletedFiles, setNow: (ms) => time.setClock(() => ms) };
   let phoneSeq = 0;
-  /** 学员注册（无需手机号验证；手机号为选填资料） */
-  env.registerStudent = (openid, data) => ok(openid, 'auth.registerStudent', { agreePrivacy: true, ...data });
+  /** 学员注册：手机号为注册必填项，未指定时自动分配唯一的合法手机号 */
+  env.registerStudent = (openid, data) => {
+    const phone = data && data.phone !== undefined ? data.phone : `1990000${String((phoneSeq += 1)).padStart(4, '0')}`;
+    return ok(openid, 'auth.registerStudent', { agreePrivacy: true, ...data, phone });
+  };
 
   const account = (openid, name) => env.registerStudent(openid, { name });
   await account('owner-openid', '店主');
