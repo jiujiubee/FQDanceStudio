@@ -8,8 +8,7 @@
   <block wx:else>
   <view class="card row head" bindtap="toProfile">
 	<view class="avatar lg">
-	  <image wx:if="{{avatar}}" src="{{avatar}}" mode="aspectFill" />
-	  <text wx:else>{{f.initial(name)}}</text>
+	  <image src="{{avatar || defaultAvatar}}" mode="aspectFill" binderror="onAvatarError" />
 	</view>
 	<view class="grow info">
 	  <view class="nm">{{name}}</view>

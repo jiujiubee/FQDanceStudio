@@ -1,6 +1,7 @@
 import { call, callWithToast } from '../../utils/api'
 import { login } from '../../utils/session'
 import { today } from '../../utils/date'
+import { LOCAL_AVATAR } from '../../utils/image'
 
 const GENDERS = [
   { value: '', text: '未设置' },
@@ -18,6 +19,7 @@ Page({
     userId: '',
     form: { name: '', avatar: '', wxid: '', phone: '', gender: '', birthday: '', emergencyContact: '', bio: '' },
     newAvatarTmp: '',
+    defaultAvatar: LOCAL_AVATAR,
     needPrivacy: false,
     busy: false,
   },
@@ -36,7 +38,7 @@ Page({
       isTeacher: !!p.teacher,
       form: {
         name: p.name || '',
-        avatar: st.avatar || t.avatar || '',
+        avatar: p.avatarUrl || '',
         wxid: st.wxid || '',
         phone: st.phone || '',
         gender: st.gender || '',
@@ -77,11 +79,16 @@ Page({
     if (url) this.setData({ 'form.avatar': url, newAvatarTmp: url })
   },
 
+  onAvatarError() {
+    this.setData({ 'form.avatar': '' })
+  },
+
   async uploadAvatar(): Promise<string | null> {
     const tmp = this.data.newAvatarTmp
     if (!tmp) return null
     const ext = (tmp.match(/\.(jpg|jpeg|png|webp)$/i) || ['.jpg'])[0].toLowerCase()
     const r = await wx.cloud.uploadFile({ cloudPath: `avatars/${this.data.userId}/${Date.now()}${ext}`, filePath: tmp })
+    if (!r || !r.fileID || r.fileID.indexOf('cloud://') !== 0) throw new Error('云存储未返回文件标识')
     return r.fileID
   },
 

@@ -2,8 +2,7 @@
 <view wx:if="{{mode === 'student'}}" class="sc {{item.status === 'cancelled' ? 'cancelled' : ''}} {{item.phase === 'ended' ? 'ended' : ''}}" bindtap="tap">
   <view class="sc-top">
 	<view class="t-av">
-	  <image wx:if="{{item.teacherAvatar}}" src="{{item.teacherAvatar}}" mode="aspectFill" />
-	  <text wx:else>{{f.initial(item.teacherName)}}</text>
+	  <image src="{{item.teacherAvatar && !failed.t ? item.teacherAvatar : defaultAvatar}}" mode="aspectFill" data-k="t" binderror="onAvatarError" />
 	</view>
 	<view class="body">
 	  <view class="row1">
@@ -15,8 +14,8 @@
 		<block wx:if="{{item.room}}"><text class="ml">教室 {{item.room}}</text></block>
 	  </view>
 	  <view class="meta">
-		<image class="mi" src="/assets/icons/teacher-muted.svg" /><text>{{item.teacherName}}</text>
-		class="star {{n <= item.level ? 'on' : ''}}"></text></view>
+		<text>{{item.teacherName}}</text>
+		<view wx:if="{{item.level}}" class="stars ml"><text wx:for="{{[1, 2, 3, 4, 5]}}" wx:for-item="n" wx:key="*this" class="star {{item.level >= n ? 'on' : ''}}"></text></view>
 	  </view>
 	  <view wx:if="{{item.status === 'cancelled' && item.cancelReason}}" class="reason">取消原因：{{item.cancelReason}}</view>
 	</view>
@@ -25,8 +24,7 @@
 	<view class="booked">
 	  <view class="avs">
 		<view wx:for="{{item.bookedStudents}}" wx:key="id" class="av">
-		  <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
-		  <text wx:else>{{item.initial}}</text>
+		  <image src="{{item.avatar && !failed[item.id] ? item.avatar : defaultAvatar}}" mode="aspectFill" data-k="{{item.id}}" binderror="onAvatarError" />
 		</view>
 		<view wx:if="{{item.bookedCount > item.bookedStudents.length}}" class="av more">+{{item.bookedCount - item.bookedStudents.length}}</view>
 	  </view>

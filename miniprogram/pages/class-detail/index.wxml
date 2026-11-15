@@ -9,7 +9,7 @@
 	  </view>
 	  <view class="small grey mt-s">{{f.dateCN(cls.date)}} {{cls.startTime}} - {{cls.endTime}}</view>
 	  <view wx:if="{{cls.room}}" class="small grey">教室：{{cls.room}}</view>
-	  class="star {{n <= cls.level ? 'on' : ''}}"></text></view>
+	  <view wx:if="{{cls.level}}" class="small grey">难度：<text wx:for="{{[1, 2, 3, 4, 5]}}" wx:for-item="n" wx:key="*this" class="star {{cls.level >= n ? 'on' : ''}}"></text></view>
 	  <view wx:if="{{cls.cancelReason}}" class="small danger">取消原因：{{cls.cancelReason}}</view>
 	  <view wx:if="{{cls.description}}" class="small grey mt">{{cls.description}}</view>
 	</view>
@@ -20,8 +20,7 @@
 
 	<view class="card row teacher" bindtap="openTeacher">
 	  <view class="t-av">
-		<image wx:if="{{cls.teacherAvatar}}" src="{{cls.teacherAvatar}}" mode="aspectFill" />
-		<text wx:else>{{f.initial(cls.teacherName)}}</text>
+		<image src="{{cls.teacherAvatar || defaultAvatar}}" mode="aspectFill" binderror="onTeacherAvatarError" />
 	  </view>
 	  <view class="grow t-info"><text class="tiny muted">授课老师</text><text class="bold t-nm">{{cls.teacherName}}</text></view>
 	  <image class="t-arrow" src="/assets/icons/right-muted.svg" />

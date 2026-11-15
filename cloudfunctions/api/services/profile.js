@@ -6,6 +6,7 @@ const { v } = require('../lib/validate');
 const views = require('../lib/views');
 const { P } = require('../lib/permissions');
 const phoneLib = require('../lib/phone');
+const { selfAvatarUrl } = require('../lib/avatars');
 const { _countOwners: countOwners } = require('./staff');
 
 /** 只接受本人目录下的云存储文件，防止引用他人文件 */
@@ -25,6 +26,7 @@ module.exports = {
       role: ctx.role,
       roles: ctx.roles,
       wxid: ctx.user.wxid || '',
+      avatarUrl: await selfAvatarUrl(ctx),
       student: views.studentForSelf(ctx.student),
       teacher: ctx.teacher ? { _id: ctx.teacher._id, name: ctx.teacher.name, avatar: ctx.teacher.avatar || '', bio: ctx.teacher.bio || '' } : null,
     };
@@ -62,10 +64,13 @@ module.exports = {
       const patch = { updatedAt: ts };
       if (name !== undefined) patch.name = name;
       if (avatar !== undefined) { patch.avatar = avatar; patch.avatarThumb = ''; }
-      if (data.bio !== undefined)
+      if (data.bio !== undefined) patch.bio = v.str(data.bio, '简介', { optional: true, max: 500 });
       await ctx.store.update('teachers', ctx.teacher._id, patch);
     }
-    if (name !== undefined) await ctx.store.update('users', ctx.user._id, { name, updatedAt: ts });
+    const userPatch = {};
+    if (name !== undefined) userPatch.name = name;
+    if (avatar !== undefined) userPatch.avatar = avatar;
+    if (Object.keys(userPatch).length) await ctx.store.update('users', ctx.user._id, { ...userPatch, updatedAt: ts });
     return { updated: true };
   },
 

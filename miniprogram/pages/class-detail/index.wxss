@@ -2,8 +2,8 @@
 .star { color: var(--c-light-grey); }
 .star.on { color: #E6A23C; }
 .star::before { content: '\2605'; }
-.class-video {
-.video-card { padding: 0; overflow: hidden; }
+.class-video { display: block; width: 100%; }
+.video-card
 .teacher { align-items: center; gap: 16rpx; padding-top: 16rpx; padding-bottom: 16rpx; }
 .t-av { width: 56rpx; height: 56rpx; flex-shrink: 0; border-radius: 50%; overflow: hidden; background: var(--c-bg-grey); display: flex; align-items: center; justify-content: center; font-size: 24rpx; color: var(--c-grey); }
 .t-av image { width: 100%; height: 100%; }

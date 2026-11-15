@@ -79,7 +79,8 @@ Page({
     try {
       const r = await call<WeekResult>('schedule.week', { weekStart: this.data.weekStart })
       if (seq !== this._seq) return
-      this.setData({ classes: r.classes, marks: r.marks, today: r.today, loading: false })
+      const classes = r.classes.filter((c) => c.status !== 'cancelled')
+      this.setData({ classes, marks: r.marks, today: r.today, loading: false })
       this.filterDay()
     } catch (e: any) {
       if (seq !== this._seq) return

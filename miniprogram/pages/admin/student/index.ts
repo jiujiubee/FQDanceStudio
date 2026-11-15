@@ -2,6 +2,7 @@ import { call, callWithToast, requestId, toastError } from '../../../utils/api'
 import { can, ensureRegistered } from '../../../utils/session'
 import { addDays, today } from '../../../utils/date'
 import { MEMBERSHIP_TYPE, TX_TYPE } from '../../../utils/format'
+import { LOCAL_AVATAR } from '../../../utils/image'
 
 type ModalKind = '' | 'adjust' | 'renew' | 'toggle' | 'create' | 'status' | 'history' | 'teacher'
 
@@ -24,6 +25,7 @@ Page({
     id: '',
     loading: true,
     st: {} as any,
+    defaultAvatar: LOCAL_AVATAR,
     account: null as any,
     full: false,
     memberships: [] as any[],
@@ -82,6 +84,10 @@ Page({
     } catch (e) {
       /* 无权限时忽略 */
     }
+  },
+
+  onAvatarError() {
+    this.setData({ 'st.avatar': '' })
   },
 
   moreHistory() {

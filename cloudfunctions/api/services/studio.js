@@ -67,12 +67,13 @@ async function homeTeachers(store) {
     const u = t.userId ? await store.get('users', t.userId) : null;
     if (t.userId && (!u || u.status === 'deleted' || !rolesOf(u).includes('teacher'))) continue;
     const card = teacherCard(t);
-    if (!card.avatar && u && u.studentId) {
-      const stu = await store.get('students', u.studentId);
-      if (stu && stu.avatar) {
-        card.avatar = stu.avatar;
+    if (!card.avatar && u) {
+      const stu = u.studentId ? await store.get('students', u.studentId) : null;
+      const f = u.avatar || (stu && stu.avatar) || '';
+      if (f) {
+        card.avatar = f;
         card.avatarThumb = '';
-        card.updatedAt = Math.max(card.updatedAt || 0, stu.updatedAt || 0);
+        card.updatedAt = Math.max(card.updatedAt || 0, (stu && stu.updatedAt) || 0, u.updatedAt || 0);
       }
     }
     if (card.avatarThumb && !card.avatar) card.avatarThumb = '';
@@ -139,7 +140,8 @@ module.exports = {
     if (!d.avatar && t.userId) {
       const u = await ctx.store.get('users', t.userId);
       const stu = u && u.studentId ? await ctx.store.get('students', u.studentId) : null;
-      if (stu && stu.avatar) { d.avatar = stu.avatar; d.avatarThumb = ''; }
+      const f = (u && u.avatar) || (stu && stu.avatar) || '';
+      if (f) { d.avatar = f; d.avatarThumb = ''; }
     }
     return (await withUrls(ctx, [d]))[0];
   },
@@ -180,7 +182,8 @@ module.exports = {
       if (!d.avatar && t.userId) {
         const u = await ctx.store.get('users', t.userId);
         const stu = u && u.studentId ? await ctx.store.get('students', u.studentId) : null;
-        if (stu && stu.avatar) { d.avatar = stu.avatar; d.avatarThumb = ''; }
+        const f = (u && u.avatar) || (stu && stu.avatar) || '';
+        if (f) { d.avatar = f; d.avatarThumb = ''; }
       }
       list.push(d);
     }

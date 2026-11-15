@@ -81,7 +81,15 @@ test('14. 已取消课程签到被拒绝', async () => {
   const r = await env.call('student-openid', 'attendance.checkIn', { classId: c.classes[0]._id });
   assert.equal(r.code, 'CLASS_CANCELLED');
   const week = await env.ok('student-openid', 'schedule.week', {});
-  assert.equal(week.classes.find((x) => x._id === c.classes[0]._id).state, 'cancelled');
+  assert.equal(week.classes.find((x) => x._id === c.classes[0]._id), undefined);
+  const book = await env.call('student-openid', 'booking.create', { classId: c.classes[0]._id });
+  assert.equal(book.code, 'CLASS_CANCELLED');
+  const detail = await env.ok('student-openid', 'schedule.classDetail', { classId: c.classes[0]._id });
+  assert.equal(detail.class.state, 'cancelled');
+  assert.equal(detail.class.canBook, false);
+  const staff = await env.ok('owner-openid', 'class.list', { from: c.classes[0].date || '2024-06-03', to: c.classes[0].date || '2024-06-03' });
+  assert.equal(staff.classes.find((x) => x._id === c.classes[0]._id).status, 'cancelled');
+  assert.ok(await env.store.get('classes', c.classes[0]._id));
 });
 
 test('课程开始后不能预约（预约即签到）；已结束课程不可预约', async () => {

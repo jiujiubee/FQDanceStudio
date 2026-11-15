@@ -3,8 +3,7 @@
   <view class="av-wrap">
 	<button class="av-btn" open-type="{{needPrivacy ? 'agreePrivacyAuthorization|chooseAvatar' : 'chooseAvatar'}}" bindagreeprivacyauthorization="onPrivacyAgree" bindchooseavatar="onAvatar">
 	  <view class="avatar lg">
-		<image wx:if="{{form.avatar}}" src="{{form.avatar}}" mode="aspectFill" />
-		<text wx:else>{{f.initial(form.name)}}</text>
+		<image src="{{form.avatar || defaultAvatar}}" mode="aspectFill" binderror="onAvatarError" />
 	  </view>
 	</button>
 	<text class="tiny muted">点击更换头像</text>

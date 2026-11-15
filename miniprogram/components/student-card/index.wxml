@@ -1,5 +1,6 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
 <view class="sc" bindtap="tap">
+  <view class="avatar"><image src="{{item.avatar && !failed ? item.avatar : defaultAvatar}}" mode="aspectFill" binderror="onAvatarError" /></view>
   <view class="grow body">
 	<view class="row">
 	  <text class="nm ellipsis">{{item.name}}</text>

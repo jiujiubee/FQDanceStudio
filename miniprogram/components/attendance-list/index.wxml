@@ -2,8 +2,7 @@
 <view class="al">
   <view wx:for="{{list}}" wx:key="studentId" class="it">
 	<view class="avatar">
-	  <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
-	  <text wx:else>{{f.initial(item.name)}}</text>
+	  <image src="{{item.avatar && !failed[item.studentId] ? item.avatar : defaultAvatar}}" mode="aspectFill" data-k="{{item.studentId}}" binderror="onAvatarError" />
 	</view>
 	<view class="grow info">
 	  <view class="nm">{{item.name}}</view>

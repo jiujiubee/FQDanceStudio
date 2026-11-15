@@ -8,6 +8,7 @@ const views = require('../lib/views');
 const { P } = require('../lib/permissions');
 const { rolesOf, isStaff } = require('../lib/roles');
 const phoneLib = require('../lib/phone');
+const { studentAvatarUrls } = require('../lib/avatars');
 
 const WXID = /^[A-Za-z][-_A-Za-z0-9]{5,19}$|^1\d{10}$/;
 
@@ -78,7 +79,8 @@ module.exports = {
     const project = ctx.can(P.STUDENT_VIEW_ALL) ? views.studentForStaff : views.studentForTeacher;
     const items = list.slice(0, size);
     const roleMap = await rolesByUser(ctx.store, items);
-    return { items: items.map((s) => ({ ...project(s), roles: roleMap.get(s.userId) || ['student'] })), hasMore: list.length > size };
+    const avatarMap = await studentAvatarUrls(ctx, items);
+    return { items: items.map((s) => ({ ...project(s), avatar: avatarMap.get(s._id) || '', roles: roleMap.get(s.userId) || ['student'] })), hasMore: list.length > size };
   },
 
   async 'student.get'(ctx, data) {
@@ -87,7 +89,8 @@ module.exports = {
     await ctx.assertStudentAccess(id);
     const s = await ctx.store.get('students', id);
     if (!s || s.status === 'deleted') throw E.notFound('学员');
-    if (!ctx.can(P.STUDENT_VIEW_ALL)) return { student: views.studentForTeacher(s), memberships: null };
+    const avatar = (await studentAvatarUrls(ctx, [s])).get(s._id) || '';
+    if (!ctx.can(P.STUDENT_VIEW_ALL)) return { student: { ...views.studentForTeacher(s), avatar }, memberships: null };
     const ms = await ctx.store.find('memberships', { studentId: id }, { orderBy: [['createdAt', 'desc']] });
     const month = time.monthKey(time.today());
     const u = s.userId ? await ctx.store.get('users', s.userId) : null;
@@ -95,7 +98,7 @@ module.exports = {
     const t = u && u.teacherId ? await ctx.store.get('teachers', u.teacherId) : null;
     const teaching = roles.includes('teacher') && !!t && t.status === 'active';
     return {
-      student: { ...views.studentForStaff(s), roles: roles.length ? roles.filter((r) => r !== 'teacher' || teaching) : ['student'] },
+      student: { ...views.studentForStaff(s), avatar, roles: roles.length ? roles.filter((r) => r !== 'teacher' || teaching) : ['student'] },
       account: u ? {
         userId: u._id, roles, teaching, teacherId: teaching ? t._id : '',
         canSetTeacher: ctx.can(P.TEACHER_MANAGE) && u.status === 'active' && !teaching,

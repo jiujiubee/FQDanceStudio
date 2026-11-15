@@ -13,6 +13,14 @@ const { E } = require('../lib/errors');
 const { v, escapeRegex } = require('../lib/validate');
 const { P, ALL, FORBIDDEN_FOR_ROLE } = require('../lib/permissions');
 const { rolesOf, roleFields, labelOf, ROLE_LABEL, STAFF_ROLES } = require('../lib/roles');
+const { teacherAvatarUrls } = require('../lib/avatars');
+
+/** 员工头像：教师档案头像 → 关联 User 头像，cloud:// 换成临时 HTTPS 地址 */
+async function withAvatars(ctx, users, items, tMap) {
+  const refs = users.map((u) => ({ ...(tMap.get(u.teacherId) || {}), _id: u._id, userId: u._id }));
+  const map = await teacherAvatarUrls(ctx, refs);
+  return items.map((x) => ({ ...x, avatar: map.get(x.userId) || '' }));
+}
 
 const PERM_FOR_ROLE = { teacher: P.TEACHER_MANAGE, owner: P.OWNER_MANAGE };
 /** 教师档案主键由用户 ID 确定性生成：同一用户永远只有一份教师档案 */
@@ -115,7 +123,7 @@ module.exports = {
     }, { limit: 30 });
     const registered = users.filter((u) => u.name && u.privacyAgreedVersion);
     const tMap = await teacherMap(ctx.store, registered);
-    return registered.map((u) => userView(ctx, u, tMap));
+    return withAvatars(ctx, registered, registered.map((u) => userView(ctx, u, tMap)), tMap);
   },
 
   async 'staff.list'(ctx) {
@@ -123,7 +131,7 @@ module.exports = {
     const users = (await ctx.store.find('users', { role: { $in: STAFF_ROLES }, status: { $in: ['active', 'suspended'] } }))
       .filter((u) => rolesOf(u).some((r) => STAFF_ROLES.includes(r)));
     const tMap = await teacherMap(ctx.store, users);
-    const items = users.map((u) => userView(ctx, u, tMap));
+    const items = await withAvatars(ctx, users, users.map((u) => userView(ctx, u, tMap)), tMap);
     const rank = (x) => STAFF_ROLES.indexOf(x.roles[0]);
     items.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'zh-CN'));
     return items;

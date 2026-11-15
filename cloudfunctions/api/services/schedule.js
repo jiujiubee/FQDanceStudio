@@ -10,7 +10,7 @@ const core = require('../lib/attendance-core');
 const bk = require('../lib/booking-core');
 const { bookingCancellationCutoffMinutes } = require('../lib/settings-defaults');
 const { videoUrl } = require('../lib/class-video');
-const { studentAvatarUrls } = require('../lib/avatars');
+const { studentAvatarUrls, teacherAvatarUrls } = require('../lib/avatars');
 
 const MAX_FUTURE_WEEKS = 26;
 const AVATAR_LIMIT = 5;
@@ -62,7 +62,7 @@ async function decorateClasses(ctx, list, range) {
   const avatarMap = await studentAvatarUrls(ctx, studs);
   const teacherIds = [...new Set(list.map((c) => c.teacherId).filter(Boolean))];
   const teachers = teacherIds.length ? await ctx.store.find('teachers', { _id: { $in: teacherIds } }) : [];
-  const tMap = new Map(teachers.map((t) => [t._id, t]));
+  const tAvatarMap = await teacherAvatarUrls(ctx, teachers);
 
   return list.map((c) => {
     const base = views.classView(c);
@@ -114,11 +114,10 @@ async function decorateClasses(ctx, list, range) {
         hint = '可预约';
       }
     }
-    const t = tMap.get(c.teacherId);
     return {
       ...base, state, phase, canCheckIn, canBook, canCancelBooking, hint, remaining, bookedCount,
       bookingCancellationCutoffMinutes: cutoffMinutes,
-      teacherAvatar: (t && t.avatar) || '',
+      teacherAvatar: tAvatarMap.get(c.teacherId) || '',
       bookedStudents: classBooks.slice(0, avatarLimit).map((x) => {
         const s = sMap.get(x.studentId);
         const name = (s && s.name) || x.studentName || '';
@@ -147,8 +146,9 @@ module.exports = {
     const end = time.addDays(start, 6);
     const nowMs = time.now();
 
-    const classes = await ctx.store.find('classes', { date: { $gte: start, $lte: end } }, { orderBy: [['date', 'asc'], ['startTime', 'asc']] });
-    // 当天已结束的课程仍显示（状态「已结束」，不可预约）；更早日期的已结束课程从活动课表中移除
+    // 学员端只展示有效课程：已取消课程在查询条件中排除（历史数据保留，教师/店主端仍可查看）
+    const classes = await ctx.store.find('classes', { date: { $gte: start, $lte: end }, status: { $ne: 'cancelled' } }, { orderBy: [['date', 'asc'], ['startTime', 'asc']] });
+    // 当天已结束
     const active = classes.filter((c) => c.endAt > nowMs || c.date === today);
     const items = await decorateClasses(ctx, active, { from: start, to: end });
 

@@ -16,6 +16,7 @@ const views = require('../lib/views');
 const { hasLegacyAdmin, roleFields, labelOf, isStaff } = require('../lib/roles');
 const { buildContext } = require('../lib/context');
 const phoneLib = require('../lib/phone');
+const { selfAvatarUrl } = require('../lib/avatars');
 
 const EMPTY_SUMMARY = { type: 'none', label: '未开卡', remainingCredits: 0, expireDate: '', status: 'none' };
 
@@ -121,10 +122,13 @@ module.exports = {
     if (ctx.registered && !ctx.user.studentId && ctx.user.status === 'active') {
       await ensureStudentProfile(ctx.store, ctx.user);
       const fresh = await buildContext(ctx.store, ctx.openid, { allowSuspended: true });
-      return sessionView({ ...fresh, devMode: ctx.devMode, simulated: ctx.simulated });
+      const fv = sessionView({ ...fresh, devMode: ctx.devMode, simulated: ctx.simulated });
+      if (fv.registered) fv.avatarUrl = await selfAvatarUrl({ ...fresh, providers: ctx.providers });
+      return fv;
     }
     const view = sessionView(ctx);
     if (!view.registered) view.defaultAvatar = await defaultAvatarUrl(ctx);
+    else view.avatarUrl = await selfAvatarUrl(ctx);
     return view;
   },
 

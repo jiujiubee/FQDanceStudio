@@ -2,11 +2,13 @@ import { call } from '../../utils/api'
 import { DEV_MODE } from '../../config'
 import { ensureRegistered, isStaff, isStudentPreview, login, setStudentPreview } from '../../utils/session'
 import { syncTab } from '../../utils/tab'
+import { LOCAL_AVATAR } from '../../utils/image'
 
 Page({
   data: {
     name: '',
     avatar: '',
+    defaultAvatar: LOCAL_AVATAR,
     roleLabel: '',
     studioName: '',
     student: null as any,
@@ -47,7 +49,7 @@ Page({
     this.setData({
       loading: false,
       name: s.name || '',
-      avatar: (s.student && s.student.avatar) || (s.teacher && s.teacher.avatar) || '',
+      avatar: s.avatarUrl || '',
       roleLabel: s.roleLabel || '',
       studioName: s.studioName,
       student: s.student || null,
@@ -64,6 +66,10 @@ Page({
         this.setData({ loadingMs: false })
       }
     }
+  },
+
+  onAvatarError() {
+    this.setData({ avatar: '' })
   },
 
   toProfile() {

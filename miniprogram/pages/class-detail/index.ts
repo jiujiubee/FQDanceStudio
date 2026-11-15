@@ -88,6 +88,10 @@ Page({
     this.setData({ [`cls.bookedStudents[${i}].avatarUrl`]: '' })
   },
 
+  onTeacherAvatarError() {
+    this.setData({ 'cls.teacherAvatar': '' })
+  },
+
   onVideoError() {
     wx.showToast({ title: '视频加载失败，请下拉刷新', icon: 'none' })
   },
