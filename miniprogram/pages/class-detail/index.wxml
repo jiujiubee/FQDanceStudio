@@ -9,7 +9,7 @@
 	  </view>
 	  <view class="small grey mt-s">{{f.dateCN(cls.date)}} {{cls.startTime}} - {{cls.endTime}}</view>
 	  <view wx:if="{{cls.room}}" class="small grey">教室：{{cls.room}}</view>
-	  <view wx:if="{{cls.level}}" class="small grey row">难度：<text wx:for="{{[1,2,3,4,5]}}" wx:for-item="n" wx:key="*this" class="star {{n <= cls.level ? 'on' : ''}}">★</text></view>
+	  class="star {{n <= cls.level ? 'on' : ''}}"></text></view>
 	  <view wx:if="{{cls.cancelReason}}" class="small danger">取消原因：{{cls.cancelReason}}</view>
 	  <view wx:if="{{cls.description}}" class="small grey mt">{{cls.description}}</view>
 	</view>
@@ -31,12 +31,17 @@
 	  <text>已预约学员</text>
 	  <text class="extra">{{cls.bookedCount}}{{cls.capacity ? ' / ' + cls.capacity : ''}} 人</text>
 	</view>
-	<view class="card avs">
-	  <view wx:for="{{cls.bookedStudents}}" wx:key="id" class="av">
-		<image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
-		<text wx:else>{{item.initial}}</text>
-	  </view>
-	  <view wx:if="{{cls.bookedCount > cls.bookedStudents.length}}" class="av more">+{{cls.bookedCount - cls.bookedStudents.length}}</view>
+	<view class="card">
+	  <scroll-view wx:if="{{cls.bookedStudents.length}}" scroll-x enhanced show-scrollbar="{{false}}" class="avs-scroll">
+		<view class="avs">
+		  <view wx:for="{{cls.bookedStudents}}" wx:key="id" class="stu">
+			<view class="av">
+			  <image src="{{item.avatarUrl || defaultAvatar}}" mode="aspectFill" data-i="{{index}}" binderror="onAvatarError" />
+			</view>
+			<text class="stu-nm tiny">{{item.name || '学员'}}</text>
+		  </view>
+		</view>
+	  </scroll-view>
 	  <text wx:if="{{!cls.bookedCount}}" class="small muted">暂无学员预约</text>
 	</view>
 

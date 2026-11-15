@@ -36,7 +36,7 @@
 	</view>
 	<view class="field">
 	  <text class="label">难度等级</text>
-	  <view class="control stars"><text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{item <= form.level ? 'on' : ''}}" data-n="{{item}}" bindtap="onLevel">★</text></view>
+	  data-n="{{item}}" bindtap="onLevel"></text></view>
 	</view>
   </view>
 

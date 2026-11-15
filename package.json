@@ -9,7 +9,8 @@
     "test:backend": "node --test \"cloudfunctions/api/test/*.test.js\"",
     "test:frontend": "node --test \"tests/*.test.js\"",
     "icons": "node tools/icons.js",
-    "db:setup": "node scripts/setup-database.js"
+    "db:setup": "node scripts/setup-database.js",
+    "images:upload": "node scripts/upload-images.js"
   },
   "devDependencies": {
     "@cloudbase/manager-node": "^5.9.4",

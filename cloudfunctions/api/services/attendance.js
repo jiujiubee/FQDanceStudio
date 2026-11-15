@@ -8,6 +8,7 @@ const { P } = require('../lib/permissions');
 const core = require('../lib/attendance-core');
 const { resolveRoster } = require('../lib/roster');
 const bk = require('../lib/booking-core');
+const { studentAvatarUrls } = require('../lib/avatars');
 
 function scopeWhere(ctx, where) {
   if (ctx.can(P.ATTENDANCE_VIEW_ALL) || ctx.can(P.CLASS_VIEW_ALL)) return where;
@@ -74,12 +75,13 @@ module.exports = {
     const studentIds = [...new Set([...att.map((a) => a.studentId), ...(roster ? roster.studentIds : []), ...books.map((b) => b.studentId)])];
     const students = studentIds.length ? await ctx.store.find('students', { _id: { $in: studentIds } }) : [];
     const sMap = new Map(students.map((s) => [s._id, s]));
+    const avatarMap = await studentAvatarUrls(ctx, students);
     const row = (sid, a) => {
       const s = sMap.get(sid);
       return {
         studentId: sid,
         name: s ? s.name : (a && a.studentName) || '学员',
-        avatar: s ? s.avatar || '' : '',
+        avatar: avatarMap.get(sid) || '',
         status: a ? a.status : 'pending',
         source: a ? a.source : '',
         checkInAt: a ? a.checkInAt : null,

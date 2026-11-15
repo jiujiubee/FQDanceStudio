@@ -2,7 +2,7 @@
   <loading-skeleton wx:if="{{loading}}" count="3" />
   <block wx:elif="{{home}}">
 	<!-- A. 海报轮播 -->
-	<swiper wx:if="{{posters.length}}" class="posters" style="height: {{posterHeight ? posterHeight + 'px' : '360rpx'}}" indicator-dots autoplay circular bindchange="onSwiper">
+	<swiper wx:if="{{posters.length}}" class="posters" style="height: {{posterHeight ? posterHeight + 'px' : '360rpx'}}" current="{{posterCurrent}}" indicator-dots autoplay circular bindchange="onSwiper">
 	  <swiper-item wx:for="{{posters}}" wx:key="key" class="poster-item">
 		<view wx:if="{{!item.loaded}}" class="poster-ph"></view>
 		<image class="poster" src="{{item.src || defaultPoster}}" mode="aspectFit" data-i="{{index}}" bindload="onPosterLoad" binderror="onPosterError" />

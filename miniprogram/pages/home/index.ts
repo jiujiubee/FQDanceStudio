@@ -12,6 +12,12 @@ interface PosterView {
   src: string
   loaded: boolean
   failed: boolean
+  /** 当前 src 对应的图片宽高比；切换 src 时清零，等新图加载后重新计算 */
+  ratio: number
+}
+
+function heightOf(ratio: number): number {
+  return Math.round(wx.getWindowInfo().windowWidth / (ratio || DEFAULT_RATIO))
 }
 
 /** Logo 等小图使用压缩缩略图；海报不经过这里，始终使用原始高清图 */
@@ -32,6 +38,7 @@ Page({
     home: null as any,
     posters: [] as PosterView[],
     posterHeight: 0,
+    posterCurrent: 0,
     logoSrc: LOCAL_LOGO,
     defaultPoster: LOCAL_POSTER,
     defaultAvatar: LOCAL_AVATAR,
@@ -85,13 +92,13 @@ Page({
     // 海报使用独立的高清原图；更换海报会产生新的 fileID，缓存自然更新
     const posterUrls = home.posterUrls || {}
     const posters: PosterView[] = (home.posters || []).map((p: string) => (
-      { key: p, file: p, src: cachedPath(p) || posterUrls[p] || LOCAL_POSTER, loaded: false, failed: !p }
+      { key: p, file: p, src: cachedPath(p) || posterUrls[p] || LOCAL_POSTER, loaded: false, failed: !p, ratio: 0 }
     ))
-    if (!posters.length) posters.push({ key: 'local', file: '', src: LOCAL_POSTER, loaded: false, failed: false })
+    if (!posters.length) posters.push({ key: 'local', file: '', src: LOCAL_POSTER, loaded: false, failed: false, ratio: 0 })
     // 先用本地缓存，其次用云函数换取的 HTTPS 临时地址（可显示他人头像），都没有才用默认头像
     const teachers = tList.map((t: any, i: number) => ({ ...t, avatarSrc: cachedPath(teacherIds[i], teacherVers[i]) || t.avatarUrl || LOCAL_AVATAR }))
     const logoId = home.logo ? (thumbOf(home, home.logo) || home.logo) : ''
-    this.setData({ home: { ...home, teachers }, posters, posterHeight: 0, logoSrc: cachedPath(logoId) || home.logoUrl || LOCAL_LOGO, loading: false })
+    this.setData({ home: { ...home, teachers }, posters, posterCurrent: 0, posterHeight: heightOf(DEFAULT_RATIO), logoSrc: cachedPath(logoId) || home.logoUrl || LOCAL_LOGO, loading: false })
 
     pruneCache([...posters.map((p) => p.file), logoId, ...teacherIds])
     // 海报：先加载当前（第一张），其余在切换时按需预加载下一张
@@ -110,35 +117,34 @@ Page({
     localImage(p.file).then((src) => {
       const cur = this.data.posters[i]
       if (!cur || cur.key !== p.key) return
-      if (src) this.setData({ [`posters[${i}].src`]: src })
+      if (src && src !== cur.src) this.setData({ [`posters[${i}].src`]: src, [`posters[${i}].ratio`]: 0 })
       else if (cur.src === LOCAL_POSTER) this.setData({ [`posters[${i}].failed`]: true })
     })
   },
 
   onSwiper(e: WechatMiniprogram.SwiperChange) {
     const i = e.detail.current
+    const p = this.data.posters[i]
+    // 切换时按当前海报自身比例重新计算高度，不沿用上一张的尺寸
+    this.setData({ posterCurrent: i, posterHeight: heightOf(p && p.ratio) })
     this.ensurePoster(i)
     this.ensurePoster((i + 1) % Math.max(1, this.data.posters.length))
   },
 
-  /** 第一张海报加载后按其比例确定轮播高度；所有海报均以 aspectFit 完整显示 */
+  /** 每张海报记录自身原始比例；轮播高度始终等于「屏宽 / 当前海报比例」，全宽贴边、完整显示 */
   onPosterLoad(e: WechatMiniprogram.CustomEvent) {
     const i = Number(e.currentTarget.dataset.i)
-    const patch: Record<string, any> = { [`posters[${i}].loaded`]: true }
-    if (i === 0 || !this.data.posterHeight) {
-      const d = e.detail as any
-      const ratio = d && d.width && d.height ? d.width / d.height : DEFAULT_RATIO
-      // 海报全屏宽度：高度严格按图片比例计算，左右贴边且完整显示、不裁切不留边
-      const boxW = wx.getWindowInfo().windowWidth
-      patch.posterHeight = Math.round(boxW / ratio)
-    }
+    const d = e.detail as any
+    const ratio = d && d.width && d.height ? d.width / d.height : DEFAULT_RATIO
+    const patch: Record<string, any> = { [`posters[${i}].loaded`]: true, [`posters[${i}].ratio`]: ratio }
+    if (i === this.data.posterCurrent) patch.posterHeight = heightOf(ratio)
     this.setData(patch)
     if (i === 0) this.ensurePoster(1)
   },
 
   onPosterError(e: WechatMiniprogram.CustomEvent) {
     const i = Number(e.currentTarget.dataset.i)
-    this.setData({ [`posters[${i}].src`]: LOCAL_POSTER, [`posters[${i}].failed`]: true, [`posters[${i}].loaded`]: true })
+    this.setData({ [`posters[${i}].src`]: LOCAL_POSTER, [`posters[${i}].ratio`]: 0, [`posters[${i}].failed`]: true, [`posters[${i}].loaded`]: true })
     if (i === 0) this.ensurePoster(1)
   },
 

@@ -1,5 +1,6 @@
 import { call, toastError } from '../../utils/api'
 import { ensureRegistered, login } from '../../utils/session'
+import { LOCAL_AVATAR } from '../../utils/image'
 
 /** 请求序号：过期的加载响应不覆盖更新的状态 */
 let _seq = 0
@@ -10,6 +11,7 @@ Page({
     loading: true,
     cls: null as any,
     busy: false,
+    defaultAvatar: LOCAL_AVATAR,
   },
 
   onLoad(q: Record<string, string>) {
@@ -78,6 +80,12 @@ Page({
 
   cancelBook() {
     this.run('booking.cancel', '取消预约（退还课时）', '取消预约', '已取消并退还课时')
+  },
+
+  /** 头像临时地址失效或加载失败时回退到本地默认头像 */
+  onAvatarError(e: WechatMiniprogram.CustomEvent) {
+    const i = Number(e.currentTarget.dataset.i)
+    this.setData({ [`cls.bookedStudents[${i}].avatarUrl`]: '' })
   },
 
   onVideoError() {
