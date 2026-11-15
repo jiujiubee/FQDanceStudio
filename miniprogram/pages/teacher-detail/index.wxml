@@ -2,7 +2,7 @@
   <loading-skeleton wx:if="{{loading}}" count="2" />
   <block wx:elif="{{t}}">
 	<view class="head">
-	  <image class="avatar" src="{{t.avatar || '/assets/icons/user-muted.svg'}}" mode="aspectFill" />
+	  <image class="avatar" src="{{avatarSrc}}" mode="aspectFill" binderror="onAvatarError" />
 	  <view class="page-title">{{t.name}}</view>
 	  <view wx:if="{{t.styles.length}}" class="row gap">
 		<text wx:for="{{t.styles}}" wx:key="*this" class="tag">{{item}}</text>
@@ -16,10 +16,10 @@
 	  <view class="section-title">教学经历</view>
 	  <text class="small grey">{{t.experience}}</text>
 	</view>
-	<view wx:if="{{t.photos.length}}" class="card mt">
+	<view wx:if="{{t.photoUrls.length}}" class="card mt">
 	  <view class="section-title">风采</view>
 	  <view class="photos">
-		<image wx:for="{{t.photos}}" wx:key="*this" class="photo" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="preview" />
+		<image wx:for="{{t.photoUrls}}" wx:key="*this" class="photo" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="preview" />
 	  </view>
 	</view>
   </block>

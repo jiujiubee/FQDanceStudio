@@ -1,9 +1,5 @@
 <wxs src="../../utils/fmt.wxs" module="f" />
 <view class="sc" bindtap="tap">
-  <view class="avatar">
-	<image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" />
-	<text wx:else>{{f.initial(item.name)}}</text>
-  </view>
   <view class="grow body">
 	<view class="row">
 	  <text class="nm ellipsis">{{item.name}}</text>
@@ -12,7 +8,7 @@
 	  <text wx:for="{{item.roles}}" wx:for-item="r" wx:key="*this" wx:if="{{r !== 'student'}}" class="tag success">{{f.label('role', r)}}</text>
 	</view>
 	<view class="sub ellipsis">
-	  <text wx:if="{{item.wxid}}">微信 {{item.wxid}}</text>
+	  <text wx:if="{{item.phone}}">{{item.phone}}</text>
 	</view>
   </view>
   <view class="right">

@@ -3,10 +3,6 @@
   <loading-skeleton wx:if="{{loading}}" count="3" />
   <block wx:else>
 	<view class="card row">
-	  <view class="avatar lg">
-		<image wx:if="{{st.avatar}}" src="{{st.avatar}}" mode="aspectFill" />
-		<text wx:else>{{f.initial(st.name)}}</text>
-	  </view>
 	  <view class="grow info">
 		<view class="row"><text class="nm">{{st.name}}</text><text wx:if="{{st.status === 'suspended'}}" class="tag danger ml">已停用</text></view>
 		<view class="row mt-s"><text wx:for="{{st.roles}}" wx:key="*this" class="tag {{item === 'student' ? '' : 'success'}} mr">{{f.label('role', item)}}</text></view>

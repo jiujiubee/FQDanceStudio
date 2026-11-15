@@ -1,18 +1,24 @@
 /**
- * 图片工具：上传时生成缩略图；首页按 fileID 缓存到本地文件，重复进入不再下载。
+ * 图片工具：上传时生成缩略图；首页按 fileID + 版本缓存到本地文件系统，重复进入不再下载。
+ * 仅头像/Logo 缓存压缩图；海报缓存原始高清图（按 fileID 区分版本，更换后自动刷新）；课程视频不经过这里。
  */
 
-const CACHE_KEY = 'imgCache:v1'
+const CACHE_KEY = 'imgCache:v2'
 const MAX_ENTRIES = 60
 
 export const POSTER_THUMB_WIDTH = 1080
 export const AVATAR_THUMB_WIDTH = 240
 export const DEFAULT_IMAGE = '/assets/icons/empty-muted.svg'
+/** 本地静态资源：随小程序包发布，首屏直接显示 */
+export const LOCAL_LOGO = '/assets/images/logo.jpg'
+export const LOCAL_AVATAR = '/assets/images/avatar-default.png'
+export const LOCAL_POSTER = '/assets/images/poster-default.jpg'
 
-type CacheMap = Record<string, string>
+interface CacheEntry { p: string; v: string }
+type CacheMap = Record<string, CacheEntry>
 
 let memory: CacheMap | null = null
-const inflight: Record<string, Promise<string>> = {}
+const inflight: Partial<Record<string, Promise<string>>> = {}
 
 function readCache(): CacheMap {
   if (!memory) {
@@ -25,12 +31,15 @@ function readCache(): CacheMap {
   return memory
 }
 
+function removeFile(path: string) {
+  try { wx.getFileSystemManager().removeSavedFile({ filePath: path }) } catch (e) { /* ignore */ }
+}
+
 function writeCache(map: CacheMap) {
   const keys = Object.keys(map)
   if (keys.length > MAX_ENTRIES) {
-    const fs = wx.getFileSystemManager()
     for (const k of keys.slice(0, keys.length - MAX_ENTRIES)) {
-      try { fs.removeSavedFile({ filePath: map[k] }) } catch (e) { /* ignore */ }
+      removeFile(map[k].p)
       delete map[k]
     }
   }
@@ -47,23 +56,25 @@ function exists(path: string): boolean {
   }
 }
 
-/** 同步读取已缓存的本地路径（无缓存返回空串） */
-export function cachedPath(fileID: string): string {
+/** 同步读取已缓存的本地路径；无缓存或版本不一致（云端已更新）返回空串 */
+export function cachedPath(fileID: string, version?: string): string {
   if (!fileID) return ''
-  const p = readCache()[fileID]
-  if (p && exists(p)) return p
+  const e = readCache()[fileID]
+  if (e && (version === undefined || e.v === version) && exists(e.p)) return e.p
   return ''
 }
 
 /**
- * 获取可显示的本地路径：命中缓存直接返回；否则从云存储下载一次并持久保存。
- * 非 cloud:// 地址原样返回。失败时返回原 fileID，交由 <image> 自行加载。
+ * 获取可显示的本地路径：命中缓存直接返回；否则从云存储下载一次并持久保存，替换旧版本文件。
+ * 非 cloud:// 地址原样返回。失败时返回空串，由调用方继续显示本地默认图。
  */
-export function localImage(fileID: string): Promise<string> {
+export function localImage(fileID: string, version = ''): Promise<string> {
   if (!fileID || fileID.indexOf('cloud://') !== 0) return Promise.resolve(fileID || '')
-  const hit = cachedPath(fileID)
+  const hit = cachedPath(fileID, version)
   if (hit) return Promise.resolve(hit)
-  if (inflight[fileID]) return inflight[fileID]
+  const key = `${fileID}|${version}`
+  const pending = inflight[key]
+  if (pending) return pending
   const task = new Promise<string>((resolve) => {
     wx.cloud.downloadFile({
       fileID,
@@ -72,19 +83,33 @@ export function localImage(fileID: string): Promise<string> {
           tempFilePath: r.tempFilePath,
           success: (s) => {
             const map = { ...readCache() }
+            const old = map[fileID]
+            if (old && old.p !== s.savedFilePath) removeFile(old.p)
             delete map[fileID]
-            map[fileID] = s.savedFilePath
+            map[fileID] = { p: s.savedFilePath, v: version }
             writeCache(map)
             resolve(s.savedFilePath)
           },
           fail: () => resolve(r.tempFilePath),
         })
       },
-      fail: () => resolve(fileID),
+      fail: () => resolve(''),
     })
-  }).finally(() => { delete inflight[fileID] })
-  inflight[fileID] = task
+  }).finally(() => { delete inflight[key] })
+  inflight[key] = task
   return task
+}
+
+/** 删除不再使用的缓存图片（如被替换或下线的海报/头像） */
+export function pruneCache(keep: string[]) {
+  const set: Record<string, true> = {}
+  keep.forEach((k) => { if (k) set[k] = true })
+  const map = { ...readCache() }
+  let changed = false
+  for (const k of Object.keys(map)) {
+    if (!set[k]) { removeFile(map[k].p); delete map[k]; changed = true }
+  }
+  if (changed) writeCache(map)
 }
 
 /** 压缩为指定宽度的缩略图；不支持或失败时返回空串 */
@@ -94,7 +119,7 @@ function compress(tmp: string, width: number): Promise<string> {
       src: tmp,
       quality: 70,
       compressedWidth: width,
-      success: (r) => resolve(r.tempFilePath),
+      success: (r: any) => resolve(r.tempFilePath),
       fail: () => resolve(''),
     } as any)
   })
@@ -107,7 +132,13 @@ async function uploadOne(userId: string, tmp: string, suffix: string): Promise<s
   return r.fileID
 }
 
-/** 上传原图，并额外上传一张压缩缩略图（缩略图失败不影响原图） */
+/** 海报：只上传原始高清图（不压缩、不生成缩略图），独立文件名，与头像/缩略图互不覆盖 */
+export async function uploadPoster(userId: string, tmp: string): Promise<string> {
+  if (!userId) throw new Error('登录状态无效，请重新进入')
+  return uploadOne(userId, tmp, '_poster')
+}
+
+/** 上传原图，并额外上传一张压缩缩略图（仅用于头像/Logo 等小尺寸图片） */
 export async function uploadWithThumb(userId: string, tmp: string, thumbWidth: number): Promise<{ fileID: string; thumb: string }> {
   if (!userId) throw new Error('登录状态无效，请重新进入')
   const fileID = await uploadOne(userId, tmp, '')

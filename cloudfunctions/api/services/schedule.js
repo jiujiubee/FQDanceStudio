@@ -10,6 +10,7 @@ const core = require('../lib/attendance-core');
 const bk = require('../lib/booking-core');
 const { bookingCancellationCutoffMinutes } = require('../lib/settings-defaults');
 const { videoUrl } = require('../lib/class-video');
+const { studentAvatarUrls } = require('../lib/avatars');
 
 const MAX_FUTURE_WEEKS = 26;
 const AVATAR_LIMIT = 5;
@@ -47,7 +48,8 @@ async function decorateClasses(ctx, list, range) {
     memberships = await ctx.store.find('memberships', { studentId: student._id, status: { $in: ['active', 'expired', 'suspended'] } });
   }
 
-  const allBooks = await ctx.store.find('classBookings', { classId: { $in: classIds }, status: { $in: bk.ACTIVE } }, { orderBy: [['bookedAt', 'asc']] });
+  const allBooks = await ctx.store.find('classBookings', { classId: { $in: classIds }, status: { $in: bk.ACTIVE } });
+  allBooks.sort((x, y) => (x.bookedAt || x.createdAt || 0) - (y.bookedAt || y.createdAt || 0));
   const byClass = new Map();
   for (const b of allBooks) {
     if (!byClass.has(b.classId)) byClass.set(b.classId, []);
@@ -57,6 +59,7 @@ async function decorateClasses(ctx, list, range) {
   for (const arr of byClass.values()) arr.slice(0, avatarLimit).forEach((b) => shownStudentIds.add(b.studentId));
   const studs = shownStudentIds.size ? await ctx.store.find('students', { _id: { $in: [...shownStudentIds] } }) : [];
   const sMap = new Map(studs.map((s) => [s._id, s]));
+  const avatarMap = await studentAvatarUrls(ctx, studs);
   const teacherIds = [...new Set(list.map((c) => c.teacherId).filter(Boolean))];
   const teachers = teacherIds.length ? await ctx.store.find('teachers', { _id: { $in: teacherIds } }) : [];
   const tMap = new Map(teachers.map((t) => [t._id, t]));
@@ -119,7 +122,8 @@ async function decorateClasses(ctx, list, range) {
       bookedStudents: classBooks.slice(0, avatarLimit).map((x) => {
         const s = sMap.get(x.studentId);
         const name = (s && s.name) || x.studentName || '';
-        return { id: x.studentId, avatar: (s && s.avatar) || '', initial: name ? name.substring(0, 1) : '?' };
+        const avatarUrl = avatarMap.get(x.studentId) || '';
+        return { id: x.studentId, name, avatar: avatarUrl, avatarUrl, initial: name ? name.substring(0, 1) : '?' };
       }),
       bookingStatus: bk.displayStatus(b, c),
       checkInAt: a && a.status === 'present' ? a.checkInAt : null,
@@ -159,7 +163,7 @@ module.exports = {
     ctx.require(P.SELF_SCHEDULE);
     const cls = await ctx.store.get('classes', v.id(data.classId, '课程'));
     if (!cls) throw E.notFound('课程');
-    const [item] = await decorateClasses(ctx, [cls], { from: cls.date, to: cls.date, avatarLimit: 30 });
+    const [item] = await decorateClasses(ctx, [cls], { from: cls.date, to: cls.date, avatarLimit: Infinity });
     item.videoUrl = cls.status === 'cancelled' ? '' : await videoUrl(ctx, cls.videoFileId);
     return { class: item, serverNow: time.now() };
   },
@@ -183,7 +187,7 @@ module.exports = {
       throw e;
     }
     const summary = await rules.refreshSummary(ctx.store, student._id);
-    const [item] = await decorateClasses(ctx, [await ctx.store.get('classes', classId)], { from: '0000-00-00', to: '9999-99-99', avatarLimit: 30 });
+    const [item] = await decorateClasses(ctx, [await ctx.store.get('classes', classId)], { from: '0000-00-00', to: '9999-99-99', avatarLimit: Infinity });
     return { classId, bookingId: bk.bookingId(classId, student._id), status: 'checked_in', checkInAt: r.checkInAt, deduction: r.deduction, summary, class: item };
   },
 
@@ -196,7 +200,7 @@ module.exports = {
       bookingCancellationCutoffMinutes: bookingCancellationCutoffMinutes(ctx.settings), reason: '学员取消',
     });
     const summary = await rules.refreshSummary(ctx.store, student._id);
-    const [item] = await decorateClasses(ctx, [await ctx.store.get('classes', classId)], { from: '0000-00-00', to: '9999-99-99', avatarLimit: 30 });
+    const [item] = await decorateClasses(ctx, [await ctx.store.get('classes', classId)], { from: '0000-00-00', to: '9999-99-99', avatarLimit: Infinity });
     return { ...r, status: 'cancelled', summary, class: item };
   },
 

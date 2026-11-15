@@ -2,6 +2,7 @@
 .stars { display: flex; gap: 12rpx; font-size: 36rpx; }
 .star { color: var(--c-light-grey); }
 .star.on { color: #E6A23C; }
+.star::before { content: '\2605'; }
 .video-preview { width: 100%; height: 400rpx; margin-top: 16rpx; border-radius: 12rpx; background: #000; }
 .video-empty { display: flex; flex-direction: column; align-items: center; gap: 8rpx; margin-top: 16rpx; padding: 40rpx 0; border: 1rpx dashed var(--c-line); border-radius: 12rpx; }
 .video-uploading { display: flex; flex-direction: column; gap: 12rpx; margin-top: 16rpx; }

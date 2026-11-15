@@ -1,6 +1,6 @@
 import { call, callWithToast, toastError } from '../../../utils/api'
 import { can, ensureRegistered } from '../../../utils/session'
-import { uploadWithThumb, POSTER_THUMB_WIDTH, AVATAR_THUMB_WIDTH } from '../../../utils/image'
+import { uploadWithThumb, uploadPoster, AVATAR_THUMB_WIDTH } from '../../../utils/image'
 
 function splitList(s: string): string[] {
   return s.split(/[,，、\n]/).map((x) => x.trim()).filter(Boolean)
@@ -23,8 +23,8 @@ function showUploadError(e: any) {
   wx.showModal({ title: '上传失败', content: String(msg), showCancel: false })
 }
 
-async function pick(count: number): Promise<string[]> {
-  const r = await wx.chooseMedia({ count, mediaType: ['image'], sizeType: ['compressed'] })
+async function pick(count: number, original = false): Promise<string[]> {
+  const r = await wx.chooseMedia({ count, mediaType: ['image'], sizeType: [original ? 'original' : 'compressed'] })
   return r.tempFiles.map((f) => f.tempFilePath)
 }
 
@@ -37,7 +37,17 @@ Page({
     s: { studioName: '', posters: [] as string[], thumbs: {} as Record<string, string>, intro: '', features: '', about: '', address: '', phone: '', logo: '', businessHours: '', latitude: null as number | null, longitude: null as number | null },
     teachers: [] as any[],
     editing: null as any,
+    logoPreview: '',
+    urls: {} as Record<string, string>,
     busy: false,
+  },
+
+  /** 记录 fileID 对应的可显示地址（HTTPS 临时地址或本地临时文件），页面不直接渲染 cloud:// */
+  addUrls(map: Record<string, string>) {
+    const urls = { ...this.data.urls }
+    let changed = false
+    Object.keys(map).forEach((k) => { if (k && map[k]) { urls[k] = map[k]; changed = true } })
+    if (changed) this.setData({ urls })
   },
 
   async onLoad() {
@@ -53,13 +63,22 @@ Page({
       const teachers = this.data.canTeacher ? await call<any[]>('teacher.manageList', {}) : []
       this.setData({
         loading: false,
+        logoPreview: h.logoUrl || '',
         teachers,
         s: {
-          studioName: h.studioName || '', posters: h.posters || [], thumbs: h.thumbs || {}, intro: h.intro || '',
+          studioName: h.studioName || '', posters: h.posters || [], thumbs: h.thumbs || {}, intro: h.intro || '', features: (h.features || []).join('、'),
           about: h.about || '', address: h.address || '', phone: h.phone || '',
           logo: h.logo || '', businessHours: h.businessHours || '', latitude: h.latitude, longitude: h.longitude,
         },
       })
+      const map: Record<string, string> = { ...(h.posterUrls || {}) }
+      for (const t of teachers) {
+        if (t.avatar && t.avatarUrl) map[t.avatar] = t.avatarUrl
+        const ps = t.photos || []
+        const us = t.photoUrls || []
+        if (ps.length === us.length) ps.forEach((p: string, i: number) => { map[p] = us[i] })
+      }
+      this.addUrls(map)
     } catch (e) {
       this.setData({ loading: false })
       toastError(e)
@@ -76,19 +95,19 @@ Page({
     if (left <= 0) return
     let files: string[]
     try {
-      files = await pick(left)
+      files = await pick(left, true)
     } catch (e) {
       if (!isCancel(e)) showUploadError(e)
       return
     }
     wx.showLoading({ title: '上传中', mask: true })
     const ids: string[] = []
-    const thumbs = { ...this.data.s.thumbs }
+    const local: Record<string, string> = {}
     try {
       for (const f of files) {
-        const r = await uploadWithThumb(this.data.userId, f, POSTER_THUMB_WIDTH)
-        ids.push(r.fileID)
-        if (r.thumb) thumbs[r.fileID] = r.thumb
+        const id = await uploadPoster(this.data.userId, f)
+        ids.push(id)
+        local[id] = f
       }
     } catch (e) {
       wx.hideLoading()
@@ -96,8 +115,9 @@ Page({
       return
     }
     wx.hideLoading()
+    this.addUrls(local)
     const prev = this.data.s.posters
-    this.setData({ 's.posters': prev.concat(ids), 's.thumbs': thumbs })
+    this.setData({ 's.posters': prev.concat(ids) })
     if (!(await this.persistPosters())) this.setData({ 's.posters': prev })
   },
 
@@ -124,8 +144,8 @@ Page({
   studioPayload() {
     const s = this.data.s
     return {
-      studioName: s.studioName.trim(), posters: s.posters, thumbs: s.thumbs, intro: s.intro,
-      about: s.about, address: s.address, phone: s.phone,
+      studioName: s.studioName.trim(), posters: s.posters, thumbs: s.thumbs, intro: s.intro, features: splitList(s.features),
+      about: s.about,
       logo: s.logo, businessHours: s.businessHours, latitude: s.latitude, longitude: s.longitude,
     }
   },
@@ -147,7 +167,7 @@ Page({
     const i = Number(e.currentTarget.dataset.i)
     let f: string
     try {
-      [f] = await pick(1)
+      [f] = await pick(1, true)
     } catch (err) {
       if (!isCancel(err)) showUploadError(err)
       return
@@ -155,9 +175,8 @@ Page({
     wx.showLoading({ title: '上传中', mask: true })
     let id: string
     try {
-      const r = await uploadWithThumb(this.data.userId, f, POSTER_THUMB_WIDTH)
-      id = r.fileID
-      if (r.thumb) this.setData({ 's.thumbs': { ...this.data.s.thumbs, [id]: r.thumb } })
+      id = await uploadPoster(this.data.userId, f)
+      this.addUrls({ [id]: f })
     } catch (err) {
       wx.hideLoading()
       showUploadError(err)
@@ -172,7 +191,8 @@ Page({
   },
 
   previewPoster(e: WechatMiniprogram.TouchEvent) {
-    wx.previewImage({ urls: this.data.s.posters, current: this.data.s.posters[Number(e.currentTarget.dataset.i)] })
+    const urls = this.data.s.posters.map((p) => this.data.urls[p] || p)
+    wx.previewImage({ urls, current: urls[Number(e.currentTarget.dataset.i)] })
   },
 
   async changeLogo() {
@@ -186,7 +206,7 @@ Page({
     wx.showLoading({ title: '上传中', mask: true })
     try {
       const r = await uploadWithThumb(this.data.userId, f, AVATAR_THUMB_WIDTH)
-      this.setData({ 's.logo': r.fileID, 's.thumbs': r.thumb ? { ...this.data.s.thumbs, [r.fileID]: r.thumb } : this.data.s.thumbs })
+      this.setData({ logoPreview: f, 's.logo': r.fileID, 's.thumbs': r.thumb ? { ...this.data.s.thumbs, [r.fileID]: r.thumb } : this.data.s.thumbs })
       wx.hideLoading()
     } catch (err) {
       wx.hideLoading()
@@ -236,6 +256,7 @@ Page({
       const [f] = await pick(1)
       wx.showLoading({ title: '上传中' })
       const r = await uploadWithThumb(this.data.userId, f, AVATAR_THUMB_WIDTH)
+      this.addUrls({ [r.fileID]: f })
       this.setData({ 'editing.avatar': r.fileID, 'editing.avatarThumb': r.thumb })
     } catch (e) {
       /* 取消 */
@@ -250,7 +271,11 @@ Page({
       const files = await pick(left)
       wx.showLoading({ title: '上传中' })
       const ids = []
-      for (const f of files) ids.push(await upload(this.data.userId, f))
+      for (const f of files) {
+        const id = await upload(this.data.userId, f)
+        this.addUrls({ [id]: f })
+        ids.push(id)
+      }
       this.setData({ 'editing.photos': this.data.editing.photos.concat(ids) })
     } catch (e) {
       /* 取消 */

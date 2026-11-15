@@ -1,25 +1,35 @@
 import { call, toastError } from '../../utils/api'
 import { ensureRegistered } from '../../utils/session'
 import { syncTab } from '../../utils/tab'
-import { cachedPath, localImage, DEFAULT_IMAGE } from '../../utils/image'
+import { cachedPath, localImage, pruneCache, LOCAL_LOGO, LOCAL_AVATAR, LOCAL_POSTER } from '../../utils/image'
 
-const HOME_CACHE_KEY = 'homeData:v1'
-const RELOAD_INTERVAL_MS = 5 * 60 * 1000
+const HOME_CACHE_KEY = 'homeData:v3'
 const DEFAULT_RATIO = 16 / 9
 
 interface PosterView {
   key: string
+  file: string
   src: string
   loaded: boolean
   failed: boolean
+  /** 当前 src 对应的图片宽高比；切换 src 时清零，等新图加载后重新计算 */
+  ratio: number
 }
 
-/** 首页显示用的图片地址：优先缩略图 */
-function displayId(home: any, fileID: string): string {
-  return (home.thumbs && home.thumbs[fileID]) || fileID
+function heightOf(ratio: number): number {
+  return Math.round(wx.getWindowInfo().windowWidth / (ratio || DEFAULT_RATIO))
 }
 
-let lastLoadAt = 0
+/** Logo 等小图使用压缩缩略图；海报不经过这里，始终使用原始高清图 */
+function thumbOf(home: any, fileID: string): string {
+  return (home.thumbs && home.thumbs[fileID]) || ''
+}
+
+/** 教师头像：优先压缩缩略图，没有缩略图（如微信头像直接上传）时使用原头像 fileID */
+function avatarId(t: any): string {
+  return t.avatarThumb || t.avatar || ''
+}
+
 let signature = ''
 
 Page({
@@ -28,8 +38,10 @@ Page({
     home: null as any,
     posters: [] as PosterView[],
     posterHeight: 0,
-    logoSrc: '',
-    defaultImage: DEFAULT_IMAGE,
+    posterCurrent: 0,
+    logoSrc: LOCAL_LOGO,
+    defaultPoster: LOCAL_POSTER,
+    defaultAvatar: LOCAL_AVATAR,
   },
 
   onLoad() {
@@ -45,7 +57,7 @@ Page({
     const s = await ensureRegistered()
     if (!s) return
     syncTab(this, '/pages/home/index')
-    if (!lastLoadAt || Date.now() - lastLoadAt > RELOAD_INTERVAL_MS) this.load()
+    this.load()
   },
 
   async onPullDownRefresh() {
@@ -56,7 +68,6 @@ Page({
   async load(): Promise<void> {
     try {
       const home = await call<any>('home.get', {})
-      lastLoadAt = Date.now()
       try { wx.setStorageSync(HOME_CACHE_KEY, home) } catch (e) { /* ignore */ }
       this.applyHome(home)
     } catch (e) {
@@ -65,77 +76,87 @@ Page({
     }
   },
 
-  /** 图片相关数据未变化时不重建图片列表，避免重复加载 */
+  /** 图片相关数据未变化时不重建图片列表，避免重复加载；先显示本地默认图，再异步替换 */
   applyHome(home: any) {
     if (home.studioName) wx.setNavigationBarTitle({ title: home.studioName })
-    const teacherIds = (home.teachers || []).map((t: any) => t.avatarThumb || t.avatar || '')
-    const sig = JSON.stringify([home.posters, home.thumbs, home.logo, teacherIds])
+    const tList = home.teachers || []
+    const teacherIds = tList.map(avatarId)
+    const teacherVers = tList.map((t: any) => String(t.updatedAt || ''))
+    const sig = JSON.stringify([home.posters, home.thumbs, home.logo, teacherIds, teacherVers])
     if (sig === signature && this.data.home) {
-      const teachers = (home.teachers || []).map((t: any, i: number) => ({ ...t, avatarSrc: this.data.home.teachers[i] ? this.data.home.teachers[i].avatarSrc : '' }))
+      const teachers = tList.map((t: any, i: number) => { const old = this.data.home.teachers[i]; return { ...t, avatarSrc: old && old._id === t._id && old.avatarSrc !== LOCAL_AVATAR ? old.avatarSrc : (cachedPath(teacherIds[i], teacherVers[i]) || t.avatarUrl || LOCAL_AVATAR) } })
       this.setData({ home: { ...home, teachers }, loading: false })
       return
     }
     signature = sig
-    const posters: PosterView[] = (home.posters || []).map((p: string) => {
-      const src = cachedPath(displayId(home, p))
-      return { key: p, src, loaded: false, failed: false }
-    })
-    const teachers = (home.teachers || []).map((t: any, i: number) => ({ ...t, avatarSrc: cachedPath(teacherIds[i]) }))
-    const logoId = home.logo ? displayId(home, home.logo) : ''
-    this.setData({ home: { ...home, teachers }, posters, posterHeight: 0, logoSrc: cachedPath(logoId), loading: false })
+    // 海报使用独立的高清原图；更换海报会产生新的 fileID，缓存自然更新
+    const posterUrls = home.posterUrls || {}
+    const posters: PosterView[] = (home.posters || []).map((p: string) => (
+      { key: p, file: p, src: cachedPath(p) || posterUrls[p] || LOCAL_POSTER, loaded: false, failed: !p, ratio: 0 }
+    ))
+    if (!posters.length) posters.push({ key: 'local', file: '', src: LOCAL_POSTER, loaded: false, failed: false, ratio: 0 })
+    // 先用本地缓存，其次用云函数换取的 HTTPS 临时地址（可显示他人头像），都没有才用默认头像
+    const teachers = tList.map((t: any, i: number) => ({ ...t, avatarSrc: cachedPath(teacherIds[i], teacherVers[i]) || t.avatarUrl || LOCAL_AVATAR }))
+    const logoId = home.logo ? (thumbOf(home, home.logo) || home.logo) : ''
+    this.setData({ home: { ...home, teachers }, posters, posterCurrent: 0, posterHeight: heightOf(DEFAULT_RATIO), logoSrc: cachedPath(logoId) || home.logoUrl || LOCAL_LOGO, loading: false })
 
-    // 海报：先加载第一张，其余在切换时按需预加载下一张
+    pruneCache([...posters.map((p) => p.file), logoId, ...teacherIds])
+    // 海报：先加载当前（第一张），其余在切换时按需预加载下一张
     this.ensurePoster(0)
-    if (logoId) localImage(logoId).then((src) => this.setData({ logoSrc: src }))
+    if (logoId) localImage(logoId).then((src) => { if (src) this.setData({ logoSrc: src }) })
     teachers.forEach((t: any, i: number) => {
-      if (teacherIds[i] && !t.avatarSrc) localImage(teacherIds[i]).then((src) => this.setData({ [`home.teachers[${i}].avatarSrc`]: src }))
+      if (teacherIds[i] && !cachedPath(teacherIds[i], teacherVers[i])) {
+        localImage(teacherIds[i], teacherVers[i]).then((src) => { if (src) this.setData({ [`home.teachers[${i}].avatarSrc`]: src }) })
+      }
     })
   },
 
   ensurePoster(i: number) {
-    const home = this.data.home
     const p = this.data.posters[i]
-    if (!home || !p || p.src) return
-    localImage(displayId(home, p.key)).then((src) => {
+    if (!p || !p.file || cachedPath(p.file)) return
+    localImage(p.file).then((src) => {
       const cur = this.data.posters[i]
-      if (cur && cur.key === p.key && !cur.src) this.setData({ [`posters[${i}].src`]: src })
+      if (!cur || cur.key !== p.key) return
+      if (src && src !== cur.src) this.setData({ [`posters[${i}].src`]: src, [`posters[${i}].ratio`]: 0 })
+      else if (cur.src === LOCAL_POSTER) this.setData({ [`posters[${i}].failed`]: true })
     })
   },
 
   onSwiper(e: WechatMiniprogram.SwiperChange) {
     const i = e.detail.current
+    const p = this.data.posters[i]
+    // 切换时按当前海报自身比例重新计算高度，不沿用上一张的尺寸
+    this.setData({ posterCurrent: i, posterHeight: heightOf(p && p.ratio) })
     this.ensurePoster(i)
     this.ensurePoster((i + 1) % Math.max(1, this.data.posters.length))
   },
 
-  /** 第一张海报加载后按其比例确定轮播高度；所有海报均以 aspectFit 完整显示 */
+  /** 每张海报记录自身原始比例；轮播高度始终等于「屏宽 / 当前海报比例」，全宽贴边、完整显示 */
   onPosterLoad(e: WechatMiniprogram.CustomEvent) {
     const i = Number(e.currentTarget.dataset.i)
-    const patch: Record<string, any> = { [`posters[${i}].loaded`]: true }
-    if (i === 0 || !this.data.posterHeight) {
-      const d = e.detail as any
-      const ratio = d && d.width && d.height ? d.width / d.height : DEFAULT_RATIO
-      const winW = wx.getWindowInfo().windowWidth
-      const boxW = winW - (64 * winW) / 750
-      patch.posterHeight = Math.round(Math.min(Math.max(boxW / ratio, boxW * 0.4), boxW * 1.5))
-    }
+    const d = e.detail as any
+    const ratio = d && d.width && d.height ? d.width / d.height : DEFAULT_RATIO
+    const patch: Record<string, any> = { [`posters[${i}].loaded`]: true, [`posters[${i}].ratio`]: ratio }
+    if (i === this.data.posterCurrent) patch.posterHeight = heightOf(ratio)
     this.setData(patch)
     if (i === 0) this.ensurePoster(1)
   },
 
   onPosterError(e: WechatMiniprogram.CustomEvent) {
     const i = Number(e.currentTarget.dataset.i)
-    this.setData({ [`posters[${i}].failed`]: true, [`posters[${i}].loaded`]: true })
+    this.setData({ [`posters[${i}].src`]: LOCAL_POSTER, [`posters[${i}].ratio`]: 0, [`posters[${i}].failed`]: true, [`posters[${i}].loaded`]: true })
     if (i === 0) this.ensurePoster(1)
   },
 
   onAvatarError(e: WechatMiniprogram.CustomEvent) {
     const i = Number(e.currentTarget.dataset.i)
-    this.setData({ [`home.teachers[${i}].avatarSrc`]: '/assets/icons/user-muted.svg' })
+    const t = this.data.home && this.data.home.teachers[i]
+    const next = t && t.avatarUrl && t.avatarSrc !== t.avatarUrl ? t.avatarUrl : LOCAL_AVATAR
+    this.setData({ [`home.teachers[${i}].avatarSrc`]: next })
   },
 
   onLogoError() {
-    this.setData({ logoSrc: DEFAULT_IMAGE })
+    this.setData({ logoSrc: LOCAL_LOGO })
   },
 
   callPhone() {

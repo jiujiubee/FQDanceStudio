@@ -35,6 +35,7 @@
 .phase.cancelled { color: var(--c-muted); }
 .stars { display: flex; font-size: 22rpx; color: var(--c-light-grey); }
 .stars .on { color: #E6A23C; }
+.stars .star::before { content: '\2605'; }
 .sc-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding-top: 16rpx; border-top: 1rpx solid var(--c-line); }
 .booked { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
 .avs { display: flex; padding-left: 12rpx; }

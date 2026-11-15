@@ -61,8 +61,8 @@ module.exports = {
     if (ctx.teacher) {
       const patch = { updatedAt: ts };
       if (name !== undefined) patch.name = name;
-      if (avatar !== undefined) patch.avatar = avatar;
-      if (data.bio !== undefined) patch.bio = v.str(data.bio, '简介', { optional: true, max: 300 });
+      if (avatar !== undefined) { patch.avatar = avatar; patch.avatarThumb = ''; }
+      if (data.bio !== undefined)
       await ctx.store.update('teachers', ctx.teacher._id, patch);
     }
     if (name !== undefined) await ctx.store.update('users', ctx.user._id, { name, updatedAt: ts });

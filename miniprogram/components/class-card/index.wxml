@@ -16,7 +16,7 @@
 	  </view>
 	  <view class="meta">
 		<image class="mi" src="/assets/icons/teacher-muted.svg" /><text>{{item.teacherName}}</text>
-		<view wx:if="{{item.level}}" class="stars ml"><text wx:for="{{[1,2,3,4,5]}}" wx:for-item="n" wx:key="*this" class="{{n <= item.level ? 'on' : ''}}">★</text></view>
+		class="star {{n <= item.level ? 'on' : ''}}"></text></view>
 	  </view>
 	  <view wx:if="{{item.status === 'cancelled' && item.cancelReason}}" class="reason">取消原因：{{item.cancelReason}}</view>
 	</view>

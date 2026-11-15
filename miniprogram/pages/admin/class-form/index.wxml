@@ -36,7 +36,7 @@
 	</view>
 	<view class="field">
 	  <text class="label">难度等级</text>
-	  <view class="control stars"><text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{item <= form.level ? 'on' : ''}}" data-n="{{item}}" bindtap="onLevel">★</text></view>
+	  data-n="{{item}}" bindtap="onLevel"></text></view>
 	</view>
   </view>
 
@@ -92,7 +92,18 @@
 	  </view>
 	  <view wx:if="{{uploading}}" class="video-uploading">
 		<progress percent="{{uploadProgress}}" stroke-width="4" activeColor="#722F3E" backgroundColor="#E5E5E5" />
-		<text class="small grey">上传中 {{uploadProgress}}%</text>
+		<text class="small grey">视频上传中 {{uploadProgress}}%{{uploadedBytes ? '（' + uploadedBytes + '）' : ''}}</text>
+		<text wx:if="{{pendingInfo}}" class="tiny muted">文件大小 {{pendingInfo}}</text>
+		<text class="small grey" bindtap="cancelUpload">取消上传</text>
+	  </view>
+	  <view wx:elif="{{uploadError}}" class="video-uploading">
+		<text class="small danger">{{uploadError}}</text>
+		<text wx:if="{{pendingInfo}}" class="tiny muted">文件大小 {{pendingInfo}}；已填写的课程信息已保留</text>
+		<view class="row">
+		  <text wx:if="{{pendingInfo}}" class="small accent" bindtap="retryUpload">重新上传</text>
+		  <text class="small accent video-del" bindtap="chooseVideo">{{uploadSlow ? '重新选择（建议压缩）' : '重新选择视频'}}</text>
+		  <text class="small grey video-del" bindtap="discardPending">不上传</text>
+		</view>
 	  </view>
 	  <block wx:elif="{{video.fileId}}">
 		<video wx:if="{{video.localPath || video.url}}" class="video-preview" src="{{video.localPath || video.url}}" object-fit="contain" />
